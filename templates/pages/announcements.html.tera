@@ -1,0 +1,46 @@
+{% extends "base.html.tera" %}
+{% block content %}
+
+<div id="content" class="p-4">
+  <div class="flex m-2">
+    <h2 class="flex-initial text-lg font-bold">
+      Ansagen des Zugfuehrers
+    </h2>
+    <div class="flex-auto"></div>
+    <a href="/announcements/new" class="flex-initial bg-gray-200 hover:bg-gray-300 rounded-md font-semibold p-2">
+      Neue Ansage
+    </a>
+  </div>
+  <div>
+    {% for announcement in announcements %}
+    <div class="bg-gray-200 my-2 p-2 rounded-md">
+	  <div>
+        <div class="flex">
+          <div class="flex-initial font-semibold">
+            {{ announcement.title }}
+          </div>
+          <div class="flex-auto"></div>
+          <a href="/announcements/modify/{{ announcement.id }}" class="flex-initial bg-gray-300 rounded-md p-1">
+            modify
+          </a>
+        </div>
+        <div class="whitespace-pre-line">{{ announcement.content }}
+        </div>
+	  </div>
+	  <div class="text-sm text-right">
+        {% if announcement.modified_at is defined %}
+        {{ announcement.modified_at | date(format="%d.%m.%Y", timezone="Europe/Berlin") }}
+        {% else %}
+		{{ announcement.created_at | date(format="%d.%m.%Y", timezone="Europe/Berlin") }}
+        {% endif %}
+	  </div>
+	</div>
+	{% else %}
+	<div class="bg-gray-200 p-2 rounded-md">
+	  Keine Ansagen
+	</div>
+	{% endfor %}
+  </div>
+</div>
+
+{% endblock content %}

@@ -1,0 +1,38 @@
+{% extends "base.html.tera" %}
+{% block content %}
+
+<div id="content" class="p-4">
+  <h2 class="text-lg font-bold">
+    {% if announcement is undefined %}
+    Neue Ansage erstellen
+    {% else %}
+    Ansage bearbeiten
+    {% endif %}
+  </h2>
+  <form>
+    <div class="grid grid-cols-1 gap-2 m-2">
+      <label for="title">Titel:</label>
+      <input type="text" name="title" id="title" class="bg-gray-200 rounded-md p-1"{% if announcement is defined %} value="{{ announcement.title }}"{% endif %}>
+
+      <label for="content">Ansage:</label>
+      <textarea name="content" id="content" rows="15" class="bg-gray-200 rounded-md p-1 resize-none">{% if announcement is defined %}{{ announcement.content }}{% endif %}</textarea>
+
+      <div class="text-right">
+        <a href="/announcements" class="bg-gray-200 hover:bg-gray-300 p-2 mr-1 rounded-md">
+          Abbrechen
+        </a>
+        {% if announcement is undefined %}
+        <button hx-post="/announcements/new" class="bg-red-600 hover:bg-red-500 p-2 ml-1 rounded-md">
+          Erstellen
+        </button>
+        {% else %}
+        <button hx-post="/announcements/modify/{{ announcement.id }}" class="bg-red-600 hover:bg-red-500 p-2 ml-1 rounded-md">
+          Speichern
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock content %}

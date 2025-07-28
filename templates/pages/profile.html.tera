@@ -1,0 +1,41 @@
+{% extends "base.html.tera" %}
+{% block content %}
+
+<div id="content" class="p-4">
+  <div class="felx m-2">
+    <h2 class="text-lg font-bold">
+      Profil
+    </h2>
+  </div>
+  <form>
+    <div class="grid grid-cols-2 gap-x-4 grid-cols-[min-content_1fr] bg-gray-200 rounded-md p-2">
+      <label for="tag_name" class="p-1">Name:</label>
+      <input id="tag_name" name="tag_name" value="{{ player.tag_name }}" class="bg-gray-300 rounded-md m-1 p-1">
+
+      <label for="email" class="p-1">Email:</label>
+      <input id="email" name="email" value="{{ player.email }}" class="bg-gray-300 rounded-md m-1 p-1">
+
+      <label for="team" class="p-1">Team:</label>
+      <output id="team" name="team" class="p-1">
+        {% if team is undefined %}
+        Kein Team
+        {% else %}
+        <a href="/teams/{{ team.id }}" class="underline">
+          {{ team.name }}
+        </a>
+        {% endif %}
+      </output>
+
+      <div class="col-span-2 text-right p-1">
+        <a href="/announcements" class="bg-gray-200 hover:bg-gray-300 p-2 mr-1 rounded-md">
+          Abbrechen
+        </a>
+        <button hx-post="/profile/save" class="bg-red-600 hover:bg-red-500 p-2 ml-1 rounded-md">
+          Speichern
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock content %}

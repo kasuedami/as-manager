@@ -1,0 +1,51 @@
+{% extends "base.html.tera" %}
+{% block content %}
+
+<div id="content" class="p-4">
+  <h2 class="text-lg font-bold">
+    {% if team is undefined %}
+    Neues Team erstellen
+    {% else %}
+    Team ansehen
+    {% endif %}
+  </h2>
+  <form>
+    <div class="grid grid-cols-2 gap-2 grid-cols-[min-content_1fr] m-2">
+      <label for="name">Name:</label>
+      <input id="name" name="name" type="text" class="bg-gray-200 rounded-md p-1"{% if team is defined %} value="{{ team.name }}"{% endif %}>
+
+      {% if contact_person is defined %}
+      <label for="contact_person">Ansprechpartner:</label>
+      <output id="contact_person" name="contact_person">{{ contact_person.tag_name }}</output>
+      {% endif %}
+
+      {% if members is defined %}
+      <div class="col-span-2 bg-gray-300 rounded-md p-2">
+        Mitglieder
+        {% for member in members %}
+        <div class="bg-gray-200 rounded-md p-1 my-1">
+          {{ member.tag_name }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="text-right col-span-2">
+        <a href="/teams" class="bg-gray-200 hover:bg-gray-300 p-2 mr-1 rounded-md">
+          Abbrechen
+        </a>
+        {% if team is undefined %}
+        <button hx-post="/teams/new" class="bg-red-600 hover:bg-red-500 p-2 ml-1 rounded-md">
+          Erstellen
+        </button>
+        {% else %}
+        <button hx-post="/teams/{{ team.id }}" class="bg-red-600 hover:bg-red-500 p-2 ml-1 rounded-md">
+          Speichern
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock content %}

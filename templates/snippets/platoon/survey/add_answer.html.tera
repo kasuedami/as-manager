@@ -1,0 +1,4 @@
+<div class="flex">
+  <input type="text" name="answers" required class="bg-gray-200 rounded-md p-1 flex-1">
+  <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 rounded-md px-3 py-1 ml-2">X</button>
+</div>

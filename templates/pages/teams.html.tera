@@ -1,0 +1,37 @@
+{% extends "base.html.tera" %}
+{% block content %}
+
+<div id="content" class="p-4">
+  <div class="flex m-2">
+    <h2 class="flex-initial text-lg font-bold">
+      Teams
+    </h2>
+    <div class="flex-auto"></div>
+    <a href="/teams/new" class="flex-initial bg-gray-200 hover:bg-gray-300 rounded-md font-semibold p-2">
+      Neues Team
+    </a>
+  </div>
+  <div>
+    {% for team in teams %}
+    <div class="bg-gray-200 my-2 p-2 rounded-md">
+	  <div>
+        <div class="flex">
+          <div class="flex-initial font-semibold">
+            {{ team.name }}
+          </div>
+          <div class="flex-auto"></div>
+          <a href="/teams/{{ team.id }}" class="flex-initial bg-gray-300 rounded-md p-1">
+            Ansehen
+          </a>
+        </div>
+	  </div>
+	</div>
+	{% else %}
+	<div class="bg-gray-200 p-2 rounded-md">
+	  Keine Ansagen
+	</div>
+	{% endfor %}
+  </div>
+</div>
+
+{% endblock content %}
