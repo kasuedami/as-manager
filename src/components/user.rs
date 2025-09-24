@@ -1,6 +1,8 @@
 use leptos::prelude::*;
 use leptos::Params;
 use leptos_router::params::Params;
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::app::AppError;
 use crate::domain::Player;
@@ -12,7 +14,6 @@ pub fn Users() -> impl IntoView {
 
     view! {
         <Protected>
-            <h1>Users</h1>
             <Outlet/>
         </Protected>
     }
@@ -20,11 +21,79 @@ pub fn Users() -> impl IntoView {
 
 #[component]
 pub fn UsersTable() -> impl IntoView {
+    use leptos_router::components::A;
+
+    use crate::components::util::BoolSymbol;
+
+    let users = Resource::new(|| {}, |_| get_users());
+
     view! {
-        <h1>"List of all users"</h1>
-        <a href="/users/new" class="button">
-            Create new user
-        </a>
+        <div class="p-8 max-w-4xl mx-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-semibold">
+                    "Spieler"
+                </h1>
+                <A href="/users/new"
+                    attr:class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
+                >
+                    "Neuer Spieler"
+                </A>
+            </div>
+
+            <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
+                {
+                    move || {
+                        users.get().map(|result| match result {
+                            Ok(users) => view! {
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full border border-gray-200 shadow-sm rounded-md bg-white">
+                                        <thead class="bg-gray-100 text-gray-700">
+                                            <tr>
+                                                <th class="text-left py-2 px-4 border-b">Id</th>
+                                                <th class="text-left py-2 px-4 border-b">Spilername</th>
+                                                <th class="text-left py-2 px-4 border-b">Email</th>
+                                                <th class="text-left py-2 px-4 border-b">Aktiv</th>
+                                                <th class="text-left py-2 px-4 border-b">Team Id</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {
+                                                users.into_iter().map(|user: Player| view! {
+                                                    <tr class="hover:bg-gray-50">
+                                                        <th class="text-left py-2 px-4 border-b">
+                                                            <A href=format!("/users/{}", user.id.unwrap()) attr:class="hover:underline">{user.id}</A>
+                                                        </th>
+                                                        <th class="text-left py-2 px-4 border-b">
+                                                            <A href=format!("/users/{}", user.id.unwrap()) attr:class="hover:underline">{user.tag_name}</A>
+                                                        </th>
+                                                        <th class="text-left py-2 px-4 border-b">
+                                                            <A href=format!("/users/{}", user.id.unwrap()) attr:class="hover:underline">{user.email}</A>
+                                                        </th>
+                                                        <th class="text-left py-2 px-4 border-b">
+                                                            <BoolSymbol value=user.active/>
+                                                        </th>
+                                                        <th class="text-left py-2 px-4 border-b">
+                                                            {if let Some(team_id) = user.team_id {
+                                                                view! { {team_id} }.into_any()
+                                                            } else {
+                                                                view! { "Kein Team" }.into_any()
+                                                            }}
+                                                        </th>
+                                                    </tr>
+                                                }).collect_view()
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }.into_any(),
+                            Err(e) => view! {
+                                <p>{e.to_string()}</p>
+                            }.into_any(),
+                        })
+                    }
+                }
+            </Suspense>
+        </div>
     }
 }
 
@@ -61,9 +130,59 @@ pub fn UserProfile() -> impl IntoView {
 
 #[component]
 pub fn UserNew() -> impl IntoView {
+    use leptos_router::components::A;
+
+    let create_new_player = ServerAction::<CreateNewPlayer>::new();
+
     view! {
-        <h2>"Create new user"</h2>
-        <UserEditOrCreate player=None/>
+        <div class="p-8 max-w-4xl mx-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-semibold">
+                    "Neuen Spieler anlegen"
+                </h1>
+            </div>
+
+            <ActionForm action=create_new_player>
+                <div class="space-y-4">
+
+                    <div class="grid grid-cols-[auto_1fr] items-center gap-4">
+                        <label for="create_new_player[email]" class="text-left text-gray-700">
+                            "Email:"
+                        </label>
+                        <input
+                            type="text"
+                            name="create_new_player[email]"
+                            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                            required
+                        />
+
+                        <label for="create_new_player[tag_name]" class="text-left text-gray-700">
+                            "Spielername:"
+                        </label>
+                        <input
+                            type="text"
+                            name="create_new_player[tag_name]"
+                            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                            required
+                        />
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <A href="/users"
+                        attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+                    >
+                        "Abort"
+                    </A>
+                    <button
+                        type="submit"
+                        class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                        "Confirm"
+                    </button>
+                </div>
+            </ActionForm>
+        </div>
     }
 }
 
@@ -98,6 +217,12 @@ pub fn UserEditOrCreate(player: Option<Player>) -> impl IntoView {
 #[derive(Params, PartialEq, Clone)]
 struct UserIdParameter {
     id: Option<i64>
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct CreateNewPlayerForm {
+    email: String,
+    tag_name: String,
 }
 
 #[server]
@@ -136,5 +261,19 @@ async fn save_player(player: Player) -> Result<(), AppError> {
     match result {
         Err(err) => Err(AppError::Database(err)),
         _ => Ok(())
+    }
+}
+
+#[server]
+async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(), AppError> {
+    use sqlx::PgPool;
+    use crate::database;
+
+    let pool = use_context::<PgPool>().ok_or_else(|| AppError::MissingContext)?;
+    let result = database::create_player(create_new_player.email, create_new_player.tag_name, b"", &pool).await;
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(err) => Err(AppError::Database(err))
     }
 }

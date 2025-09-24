@@ -19,8 +19,8 @@ pub fn Login() -> impl IntoView {
             <div class="bg-white shadow-lg rounded p-8 w-full max-w-md">
                 <ActionForm action=do_login.clone() attr:class="space-y-6">
 
-                    <div class="flex items-center space-x-4">
-                        <label for="credentials[email]" class="w-24 text-right text-gray-700">
+                    <div class="grid grid-cols-[auto_1fr] items-center gap-4">
+                        <label for="credentials[email]" class="text-left text-gray-700">
                             "Email:"
                         </label>
                         <input id="credentials[email]"
@@ -28,10 +28,8 @@ pub fn Login() -> impl IntoView {
                             type="text"
                             class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
                         />
-                    </div>
 
-                    <div class="flex items-center space-x-4">
-                        <label for="credentials[password]" class="w-24 text-right text-gray-700">
+                        <label for="credentials[password]" class="text-left text-gray-700">
                             "Password:"
                         </label>
                         <input id="credentials[password]"

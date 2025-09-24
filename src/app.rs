@@ -104,10 +104,11 @@ fn Base() -> impl IntoView {
                     <A href="/" attr:class="hover:underline">"AS-Manager"</A>
                 </h1>
 
-                <nav class="space-x-6 text-sm font-medium">
+                <nav class="space-x-6 text-sm font-medium text-m">
+                    <A href="/" attr:class="hover:underline">Home</A>
                     <A href="/events" attr:class="hover:underline">Events</A>
                     <A href="/teams" attr:class="hover:underline">Teams</A>
-                    <A href="/users" attr:class="hover:underline">Users</A>
+                    <A href="/users" attr:class="hover:underline">Spieler</A>
                 </nav>
             </div>
         </header>
