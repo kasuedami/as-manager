@@ -3,16 +3,14 @@ use axum_login::{AuthUser, AuthnBackend, UserId};
 #[cfg(feature = "ssr")]
 use crypto_hashes::sha3::{Digest, Sha3_512};
 use serde::{Serialize, Deserialize};
-#[cfg(feature = "ssr")]
-use sqlx::PgPool;
 
 #[cfg(feature = "ssr")]
-use crate::database::Player;
+use crate::database::{DieselPool, models::Player};
 
 #[cfg(feature = "ssr")]
 #[derive(Clone, Debug)]
 pub struct Backend {
-    pool: PgPool,
+    pool: DieselPool
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -34,7 +32,7 @@ pub enum AuthenticationError {
 
 #[cfg(feature = "ssr")]
 impl Backend {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: DieselPool) -> Self {
         Self {
             pool
         }
@@ -48,15 +46,13 @@ impl AuthnBackend for Backend {
     type Error = AuthenticationError;
 
     async fn authenticate(&self, creds: Self::Credentials) -> Result<Option<Self::User>, Self::Error> {
+        use crate::database::find_player_for_email;
+
         let mut hasher = Sha3_512::default();
         hasher.update(creds.password);
         let password_hash = format!("{:x}", hasher.finalize());
 
-        //TODO: make function in database module
-        let player = sqlx::query_as::<_, Player>("select * from player where email like $1")
-            .bind(&creds.email)
-            .fetch_optional(&self.pool)
-            .await;
+        let player = find_player_for_email(&creds.email, &self.pool).await;
 
         match player {
             Ok(player) => {
@@ -77,10 +73,9 @@ impl AuthnBackend for Backend {
     }
 
     async fn get_user(&self, player_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        let player = sqlx::query_as::<_, Player>("select * from player where id = $1")
-            .bind(player_id)
-            .fetch_optional(&self.pool)
-            .await;
+        use crate::database::find_player_for_id;
+
+        let player = find_player_for_id(*player_id, &self.pool).await;
 
         match player {
             Ok(player) => {
