@@ -124,11 +124,11 @@ struct RegisterForm {
 }
 
 #[server]
-async fn do_register(register_form: RegisterForm) -> Result<bool, AppError>{
-    use sqlx::PgPool;
+async fn do_register(register_form: RegisterForm) -> Result<bool, AppError> {
+    use crate::database::DieselPool;
     use crypto_hashes::sha3::{Sha3_512, Digest};
 
-    let pool = use_context::<PgPool>().expect("Database not in context");
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
     let mut hasher = Sha3_512::default();
     hasher.update(register_form.password);
     let password_hash = format!("{:x}", hasher.finalize());

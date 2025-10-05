@@ -266,10 +266,10 @@ async fn save_player(player: Player) -> Result<(), AppError> {
 
 #[server]
 async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(), AppError> {
-    use sqlx::PgPool;
+    use crate::database::DieselPool;
     use crate::database;
 
-    let pool = use_context::<PgPool>().ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
     let result = database::create_player(create_new_player.email, create_new_player.tag_name, b"", &pool).await;
 
     match result {
