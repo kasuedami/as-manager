@@ -13,8 +13,8 @@ pub struct Player {
 }
 
 #[cfg(feature = "ssr")]
-impl From<database::Player> for Player {
-    fn from(value: database::Player) -> Self {
+impl From<database::models::Player> for Player {
+    fn from(value: database::models::Player) -> Self {
         Self {
             id: Some(value.id),
             email: value.email,

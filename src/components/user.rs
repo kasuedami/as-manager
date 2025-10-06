@@ -226,18 +226,13 @@ struct CreateNewPlayerForm {
 }
 
 #[server]
-async fn get_users() -> Result<Vec<Player>, ServerFnError> {
-    use sqlx::PgPool;
-    use crate::database;
+async fn get_users() -> Result<Vec<Player>, AppError> {
+    use crate::database::{self, DieselPool};
 
-    let pool = use_context::<PgPool>()
-        .ok_or(ServerFnError::new("Missing Database pool in context"))?;
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
 
-    let database_users = sqlx::query_as::<_, database::Player>("select * from player")
-        .fetch_all(&pool)
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-
+    let database_users = database::get_all_players(&pool)?;
     let domain_users = database_users.into_iter()
         .map(|db_user| db_user.into())
         .collect();
@@ -246,8 +241,19 @@ async fn get_users() -> Result<Vec<Player>, ServerFnError> {
 }
 
 #[server]
-async fn load_player_by_id(id: i64) -> Result<Player, ServerFnError> {
-    Err(ServerFnError::ServerError("Could not load".to_string()))
+async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
+    use crate::database::{self, DatabaseError, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let result = database::find_player_for_id(id, &pool);
+
+    match result {
+        Ok(Some(player)) => Ok(player.into()),
+        Ok(None) => Err(DatabaseError::EntityNotFound.into()),
+        Err(err) => Err(err.into()),
+    }
 }
 
 #[server]
