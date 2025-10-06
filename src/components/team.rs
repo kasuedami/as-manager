@@ -2,8 +2,8 @@ use leptos::prelude::*;
 
 #[component]
 pub fn Teams() -> impl IntoView {
-    use leptos_router::components::Outlet;
     use crate::components::protected::Protected;
+    use leptos_router::components::Outlet;
 
     view! {
         <Protected>

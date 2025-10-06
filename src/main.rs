@@ -11,11 +11,14 @@ async fn main() {
         tower_sessions::{MemoryStore, SessionManagerLayer},
         AuthManagerLayerBuilder,
     };
+    use diesel::{
+        r2d2::{ConnectionManager, Pool},
+        PgConnection,
+    };
     use dotenv::dotenv;
     use leptos::logging::log;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use diesel::{PgConnection, r2d2::{ConnectionManager, Pool}};
 
     dotenv().ok();
 
