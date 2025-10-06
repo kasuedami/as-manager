@@ -8,13 +8,8 @@ use leptos_router::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::components::{auth::*, play_event::*, team::*, user::*};
 use crate::{auth::AuthError, database::DatabaseError};
-use crate::components::{
-    auth::{Login, Register},
-    play_event::{PlayEvents, PlayEventsTable, PlayEventDetails},
-    team::{Teams, TeamsTable, TeamProfile},
-    user::{Users, UsersTable, UserProfile, UserNew}
-};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -90,6 +85,7 @@ pub fn App() -> impl IntoView {
                         <ParentRoute path=path!("/users") view=Users>
                             <Route path=path!("") view=UsersTable/>
                             <Route path=path!("new") view=UserNew/>
+                            <Route path=path!(":id/edit") view=UserEdit/>
                             <Route path=path!(":id") view=UserProfile/>
                         </ParentRoute>
                         <ParentRoute path=path!("/teams") view=Teams>
@@ -109,7 +105,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn Base() -> impl IntoView {
-    use leptos_router::components::{A, Outlet};
+    use leptos_router::components::{Outlet, A};
 
     view! {
         <header class="bg-blue-600 text-white shadow-md sticky top-0 z-50">

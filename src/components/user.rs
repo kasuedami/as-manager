@@ -5,12 +5,13 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::app::AppError;
+use crate::components::util::{BackButton, BoolSymbol, OptionalLink};
 use crate::domain::Player;
 
 #[component]
 pub fn Users() -> impl IntoView {
-    use leptos_router::components::Outlet;
     use crate::components::protected::Protected;
+    use leptos_router::components::Outlet;
 
     view! {
         <Protected>
@@ -23,11 +24,10 @@ pub fn Users() -> impl IntoView {
 pub fn UsersTable() -> impl IntoView {
     use leptos_router::components::A;
 
-    use crate::components::util::BoolSymbol;
-
     let users = Resource::new(|| {}, |_| get_users());
 
     view! {
+        <BackButton/>
         <div class="p-8 max-w-4xl mx-auto">
             <div class="flex items-center justify-between mb-6">
                 <h1 class="text-2xl font-semibold">
@@ -73,11 +73,11 @@ pub fn UsersTable() -> impl IntoView {
                                                             <BoolSymbol value=user.active/>
                                                         </th>
                                                         <th class="text-left py-2 px-4 border-b">
-                                                            {if let Some(team_id) = user.team_id {
-                                                                view! { {team_id} }.into_any()
-                                                            } else {
-                                                                view! { "Kein Team" }.into_any()
-                                                            }}
+                                                            <OptionalLink value=user.team_id
+                                                                text=|id| format!("Team Id: {}", id)
+                                                                href=|id| format!("/teams/{}", id)
+                                                                fallback=move || view! { "Kein Team" }
+                                                            />
                                                         </th>
                                                     </tr>
                                                 }).collect_view()
@@ -99,32 +99,88 @@ pub fn UsersTable() -> impl IntoView {
 
 #[component]
 pub fn UserProfile() -> impl IntoView {
-    use leptos_router::hooks::use_params;
+    use leptos_router::{components::A, hooks::use_params};
 
     let params = use_params::<UserIdParameter>();
     let player = Resource::new(
         move || params.read().clone(),
-        move |params_result| load_player_by_id(params_result.unwrap().id.unwrap())
+        move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
     );
 
     view! {
-        <h2>"Edit user"</h2>
-        <Suspense fallback=|| view! { <p>"Loading player"</p> }>
-            {move || {
-                player.with(|res| {
-                    res.as_ref().map(|res| {
-                        match res {
+        <BackButton/>
+        <div class="p-8 max-w-4xl mx-auto">
+
+            <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
+                {
+                    move || {
+                        player.get().map(|result| match result {
                             Ok(player) => view! {
-                                <UserEditOrCreate player=Some(player.to_owned())/>
+                                <div class="flex items-center justify-between mb-6">
+                                    <h1 class="text-2xl font-semibold">
+                                        "Spieler " { player.tag_name.clone() }
+                                    </h1>
+                                    <A href=format!("/users/{}/edit", player.id.unwrap())
+                                        attr:class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
+                                    >
+                                        "Bearbeiten"
+                                    </A>
+                                </div>
+
+                                <div class="space-y-4">
+
+                                    <div class="grid grid-cols-[auto_1fr] items-center gap-4">
+                                        <label for="view_player[email]" class="text-left text-gray-700">
+                                            "Email:"
+                                        </label>
+                                        <output
+                                            name="view_player[email]"
+                                            class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                                            { player.email }
+                                        </output>
+
+                                        <label for="view_player[tag_name]" class="text-left text-gray-700">
+                                            "Spielername:"
+                                        </label>
+                                        <output
+                                            name="view_player[tag_name]"
+                                            class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                                            { player.tag_name }
+                                        </output>
+
+                                        <label for="view_player[active]" class="text-left text-gray-700">
+                                            "Aktiv:"
+                                        </label>
+                                        <output
+                                            name="view_player[active]"
+                                            class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                                            <BoolSymbol value=player.active/>
+                                        </output>
+
+                                        <label for="view_player[team]" class="text-left text-gray-700">
+                                            "Team:"
+                                        </label>
+                                        <output
+                                            name="view_player[team]"
+                                            class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+
+                                            <OptionalLink value=player.team_id
+                                                text=|id| format!("Team Id: {}", id)
+                                                href=|id| format!("/teams/{}", id)
+                                                fallback=move || view! { "Kein Team" }
+                                            />
+                                        </output>
+                                    </div>
+                                </div>
                             }.into_any(),
-                            Err(_) => view! {
-                                <p>"Error Loading player"</p>
-                            }.into_any()
-                        }
-                    })
-                })
-            }}
-        </Suspense>
+                            Err(e) => view! {
+                                <p>{ e.to_string() }</p>
+                            }.into_any(),
+                        })
+                    }
+                }
+            </Suspense>
+        </div>
     }
 }
 
@@ -172,13 +228,13 @@ pub fn UserNew() -> impl IntoView {
                     <A href="/users"
                         attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
                     >
-                        "Abort"
+                        "Abbrechen"
                     </A>
                     <button
                         type="submit"
                         class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                        "Confirm"
+                        "Erstellen"
                     </button>
                 </div>
             </ActionForm>
@@ -187,36 +243,105 @@ pub fn UserNew() -> impl IntoView {
 }
 
 #[component]
-pub fn UserEditOrCreate(player: Option<Player>) -> impl IntoView {
-    let id = player.as_ref().map_or(None, |p| p.id);
-    let active = player.as_ref().map_or(true.to_string(), |p| p.active.to_string());
-    let team_id = player.as_ref().map_or(None, |p| p.team_id);
+pub fn UserEdit() -> impl IntoView {
+    use leptos_router::{components::A, hooks::use_params};
 
-    let name = player.as_ref().map_or("".to_string(), |p| p.tag_name.clone());
-    let email = player.as_ref().map_or("".to_string(),  |p| p.email.clone());
+    let params = use_params::<UserIdParameter>();
+    let player = Resource::new(
+        move || params.read().clone(),
+        move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
+    );
 
     let save = ServerAction::<SavePlayer>::new();
 
     view! {
-        <ActionForm action=save>
-            <input type="hidden" name="player[id]" value=id />
-            <input type="hidden" name="player[active]" value=active />
-            <input type="hidden" name="player[team_id]" value=team_id />
-            <label>"Name:"</label>
-            <input id="tag_name" type="text" name="player[tag_name]" prop:value=name/>
-            <label>"Email:"</label>
-            <input id="email" type="text" name="player[email]" prop:value=email />
-            
-            <button type="submit">
-                {player.is_some().then_some("Update").unwrap_or("Create")}
-            </button>
-        </ActionForm>
+        <div class="p-8 max-w-4xl mx-auto">
+
+            <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
+                {
+                    move || {
+                        player.get().map(|result| match result {
+                            Ok(player) => view! {
+                                <ActionForm action=save>
+                                    <div class="flex items-center justify-between mb-6">
+                                        <h1 class="text-2xl font-semibold">
+                                            "Spieler " { player.tag_name.clone() } " bearbeiten"
+                                        </h1>
+                                    </div>
+
+                                    <div class="space-y-4">
+
+                                        <div class="grid grid-cols-[auto_1fr] items-center gap-4">
+                                            <label for="player_form[email]" class="text-left text-gray-700">
+                                                "Email:"
+                                            </label>
+                                            <input
+                                                name="player_form[email]"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                                                value=player.email/>
+
+                                            <label for="player_form[tag_name]" class="text-left text-gray-700">
+                                                "Spielername:"
+                                            </label>
+                                            <input
+                                                name="player_form[tag_name]"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                                                value=player.tag_name/>
+
+                                            <label for="player_form[active]" class="text-left text-gray-700">
+                                                "Aktiv:"
+                                            </label>
+                                            <input
+                                                type="checkbox"
+                                                name="player_form[active]"
+                                                class="w-4 h-4 accent-green-600 border-2 border-gray-300 rounded"
+                                                value=player.active.to_string()
+                                                checked=player.active.to_string()/>
+
+                                            <label for="player_form[team_id]" class="text-left text-gray-700">
+                                                "Team:"
+                                            </label>
+                                            <input
+                                                name="player_form[team_id]"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                                                value=player.team_id/>
+
+                                            <input
+                                                type="hidden"
+                                                name="player_form[id]"
+                                                value=player.id.unwrap()/>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end gap-2 mt-6">
+                                        <A href=format!("/users/{}", player.id.unwrap())
+                                            attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+                                        >
+                                            "Abbrechen"
+                                        </A>
+                                        <button
+                                            type="submit"
+                                            class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                                        >
+                                            "Speichern"
+                                        </button>
+                                    </div>
+                                </ActionForm>
+                            }.into_any(),
+                            Err(e) => view! {
+                                <p>{ e.to_string() }</p>
+                            }.into_any(),
+                        })
+                    }
+                }
+            </Suspense>
+        </div>
     }
 }
 
 #[derive(Params, PartialEq, Clone)]
 struct UserIdParameter {
-    id: Option<i64>
+    id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -225,15 +350,24 @@ struct CreateNewPlayerForm {
     tag_name: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct EditPlayerForm {
+    id: i64,
+    email: String,
+    tag_name: String,
+    active: String,
+    team_id: Option<i64>,
+}
+
 #[server]
 async fn get_users() -> Result<Vec<Player>, AppError> {
     use crate::database::{self, DieselPool};
 
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
 
     let database_users = database::get_all_players(&pool)?;
-    let domain_users = database_users.into_iter()
+    let domain_users = database_users
+        .into_iter()
         .map(|db_user| db_user.into())
         .collect();
 
@@ -244,8 +378,7 @@ async fn get_users() -> Result<Vec<Player>, AppError> {
 async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
     use crate::database::{self, DatabaseError, DieselPool};
 
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
 
     let result = database::find_player_for_id(id, &pool);
 
@@ -257,32 +390,43 @@ async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
 }
 
 #[server]
-async fn save_player(player: Player) -> Result<(), AppError> {
-    use crate::database;
-    use crate::database::DieselPool;
+async fn save_player(player_form: EditPlayerForm) -> Result<(), AppError> {
+    use crate::database::{self, DieselPool};
 
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
+    let player = Player {
+        id: Some(player_form.id),
+        email: player_form.email,
+        tag_name: player_form.tag_name,
+        active: player_form.active.parse().unwrap(),
+        team_id: player_form.team_id,
+    };
 
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
     let result = database::save_player(player, &pool);
 
     match result {
         Err(err) => Err(AppError::Database(err)),
-        _ => Ok(())
+        _ => {
+            leptos_axum::redirect("/users");
+            Ok(())
+        }
     }
 }
 
 #[server]
 async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(), AppError> {
-    use crate::database::DieselPool;
-    use crate::database;
+    use crate::database::{self, DieselPool};
 
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
-    let result = database::create_player(create_new_player.email, create_new_player.tag_name, b"", &pool);
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
+    let result = database::create_player(
+        create_new_player.email,
+        create_new_player.tag_name,
+        b"",
+        &pool,
+    );
 
     match result {
         Ok(()) => Ok(()),
-        Err(err) => Err(AppError::Database(err))
+        Err(err) => Err(AppError::Database(err)),
     }
 }

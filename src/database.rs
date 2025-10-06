@@ -19,6 +19,7 @@ pub fn save_player(player: domain::Player, pool: &DieselPool) -> Result<(), Data
     use schema::players::dsl::*;
 
     diesel::update(players)
+        .filter(id.eq(player.id.unwrap()))
         .set((
             tag_name.eq(&player.tag_name),
             email.eq(&player.email),
