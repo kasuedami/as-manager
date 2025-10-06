@@ -8,7 +8,7 @@ use leptos_router::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::components::{auth::*, play_event::*, team::*, user::*};
+use crate::components::{auth::*, play_event::*, player::*, team::*};
 use crate::{auth::AuthError, database::DatabaseError};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -82,11 +82,11 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/register") view=Register/>
                     <ParentRoute path=path!("/") view=Base>
                         <Route path=path!("") view=LandingPage/>
-                        <ParentRoute path=path!("/users") view=Users>
-                            <Route path=path!("") view=UsersTable/>
-                            <Route path=path!("new") view=UserNew/>
-                            <Route path=path!(":id/edit") view=UserEdit/>
-                            <Route path=path!(":id") view=UserProfile/>
+                        <ParentRoute path=path!("/players") view=Players>
+                            <Route path=path!("") view=PlayersTable/>
+                            <Route path=path!("new") view=PlayerNew/>
+                            <Route path=path!(":id/edit") view=PlayerEdit/>
+                            <Route path=path!(":id") view=PlayerProfile/>
                         </ParentRoute>
                         <ParentRoute path=path!("/teams") view=Teams>
                             <Route path=path!("") view=TeamsTable/>
@@ -118,7 +118,7 @@ fn Base() -> impl IntoView {
                     <A href="/" attr:class="hover:underline">Home</A>
                     <A href="/events" attr:class="hover:underline">Events</A>
                     <A href="/teams" attr:class="hover:underline">Teams</A>
-                    <A href="/users" attr:class="hover:underline">Spieler</A>
+                    <A href="/players" attr:class="hover:underline">Spieler</A>
                 </nav>
             </div>
         </header>

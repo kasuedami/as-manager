@@ -9,7 +9,7 @@ use crate::components::util::{BackButton, BoolSymbol, OptionalLink};
 use crate::domain::Player;
 
 #[component]
-pub fn Users() -> impl IntoView {
+pub fn Players() -> impl IntoView {
     use crate::components::protected::Protected;
     use leptos_router::components::Outlet;
 
@@ -21,10 +21,10 @@ pub fn Users() -> impl IntoView {
 }
 
 #[component]
-pub fn UsersTable() -> impl IntoView {
+pub fn PlayersTable() -> impl IntoView {
     use leptos_router::components::A;
 
-    let users = Resource::new(|| {}, |_| get_users());
+    let players = Resource::new(|| {}, |_| get_players());
 
     view! {
         <BackButton/>
@@ -33,7 +33,7 @@ pub fn UsersTable() -> impl IntoView {
                 <h1 class="text-2xl font-semibold">
                     "Spieler"
                 </h1>
-                <A href="/users/new"
+                <A href="/players/new"
                     attr:class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
                 >
                     "Neuer Spieler"
@@ -43,8 +43,8 @@ pub fn UsersTable() -> impl IntoView {
             <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
                 {
                     move || {
-                        users.get().map(|result| match result {
-                            Ok(users) => view! {
+                        players.get().map(|result| match result {
+                            Ok(players) => view! {
                                 <div class="overflow-x-auto">
                                     <table class="min-w-full border border-gray-200 shadow-sm rounded-md bg-white">
                                         <thead class="bg-gray-100 text-gray-700">
@@ -58,22 +58,22 @@ pub fn UsersTable() -> impl IntoView {
                                         </thead>
                                         <tbody>
                                             {
-                                                users.into_iter().map(|user: Player| view! {
+                                                players.into_iter().map(|player: Player| view! {
                                                     <tr class="hover:bg-gray-50">
                                                         <th class="text-left py-2 px-4 border-b">
-                                                            <A href=format!("/users/{}", user.id.unwrap()) attr:class="hover:underline">{user.id}</A>
+                                                            <A href=format!("/players/{}", player.id.unwrap()) attr:class="hover:underline">{player.id}</A>
                                                         </th>
                                                         <th class="text-left py-2 px-4 border-b">
-                                                            <A href=format!("/users/{}", user.id.unwrap()) attr:class="hover:underline">{user.tag_name}</A>
+                                                            <A href=format!("/players/{}", player.id.unwrap()) attr:class="hover:underline">{player.tag_name}</A>
                                                         </th>
                                                         <th class="text-left py-2 px-4 border-b">
-                                                            <A href=format!("/users/{}", user.id.unwrap()) attr:class="hover:underline">{user.email}</A>
+                                                            <A href=format!("/players/{}", player.id.unwrap()) attr:class="hover:underline">{player.email}</A>
                                                         </th>
                                                         <th class="text-left py-2 px-4 border-b">
-                                                            <BoolSymbol value=user.active/>
+                                                            <BoolSymbol value=player.active/>
                                                         </th>
                                                         <th class="text-left py-2 px-4 border-b">
-                                                            <OptionalLink value=user.team_id
+                                                            <OptionalLink value=player.team_id
                                                                 text=|id| format!("Team Id: {}", id)
                                                                 href=|id| format!("/teams/{}", id)
                                                                 fallback=move || view! { "Kein Team" }
@@ -98,10 +98,10 @@ pub fn UsersTable() -> impl IntoView {
 }
 
 #[component]
-pub fn UserProfile() -> impl IntoView {
+pub fn PlayerProfile() -> impl IntoView {
     use leptos_router::{components::A, hooks::use_params};
 
-    let params = use_params::<UserIdParameter>();
+    let params = use_params::<PlayerIdParameter>();
     let player = Resource::new(
         move || params.read().clone(),
         move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
@@ -120,7 +120,7 @@ pub fn UserProfile() -> impl IntoView {
                                     <h1 class="text-2xl font-semibold">
                                         "Spieler " { player.tag_name.clone() }
                                     </h1>
-                                    <A href=format!("/users/{}/edit", player.id.unwrap())
+                                    <A href=format!("/players/{}/edit", player.id.unwrap())
                                         attr:class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition"
                                     >
                                         "Bearbeiten"
@@ -185,7 +185,7 @@ pub fn UserProfile() -> impl IntoView {
 }
 
 #[component]
-pub fn UserNew() -> impl IntoView {
+pub fn PlayerNew() -> impl IntoView {
     use leptos_router::components::A;
 
     let create_new_player = ServerAction::<CreateNewPlayer>::new();
@@ -225,7 +225,7 @@ pub fn UserNew() -> impl IntoView {
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
-                    <A href="/users"
+                    <A href="/players"
                         attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
                     >
                         "Abbrechen"
@@ -243,10 +243,10 @@ pub fn UserNew() -> impl IntoView {
 }
 
 #[component]
-pub fn UserEdit() -> impl IntoView {
+pub fn PlayerEdit() -> impl IntoView {
     use leptos_router::{components::A, hooks::use_params};
 
-    let params = use_params::<UserIdParameter>();
+    let params = use_params::<PlayerIdParameter>();
     let player = Resource::new(
         move || params.read().clone(),
         move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
@@ -314,7 +314,7 @@ pub fn UserEdit() -> impl IntoView {
                                     </div>
 
                                     <div class="flex justify-end gap-2 mt-6">
-                                        <A href=format!("/users/{}", player.id.unwrap())
+                                        <A href=format!("/players/{}", player.id.unwrap())
                                             attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
                                         >
                                             "Abbrechen"
@@ -340,7 +340,7 @@ pub fn UserEdit() -> impl IntoView {
 }
 
 #[derive(Params, PartialEq, Clone)]
-struct UserIdParameter {
+struct PlayerIdParameter {
     id: Option<i64>,
 }
 
@@ -360,18 +360,18 @@ struct EditPlayerForm {
 }
 
 #[server]
-async fn get_users() -> Result<Vec<Player>, AppError> {
+async fn get_players() -> Result<Vec<Player>, AppError> {
     use crate::database::{self, DieselPool};
 
     let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
 
-    let database_users = database::get_all_players(&pool)?;
-    let domain_users = database_users
+    let database_players = database::get_all_players(&pool)?;
+    let domain_players = database_players
         .into_iter()
-        .map(|db_user| db_user.into())
+        .map(|db_player| db_player.into())
         .collect();
 
-    Ok(domain_users)
+    Ok(domain_players)
 }
 
 #[server]
@@ -407,7 +407,7 @@ async fn save_player(player_form: EditPlayerForm) -> Result<(), AppError> {
     match result {
         Err(err) => Err(AppError::Database(err)),
         _ => {
-            leptos_axum::redirect("/users");
+            leptos_axum::redirect("/players");
             Ok(())
         }
     }
