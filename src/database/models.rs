@@ -12,7 +12,7 @@ pub struct Player {
     pub team_id: Option<i64>,
     pub password_hash: Vec<u8>,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Insertable)]

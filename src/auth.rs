@@ -2,15 +2,15 @@
 use axum_login::{AuthUser, AuthnBackend, UserId};
 #[cfg(feature = "ssr")]
 use crypto_hashes::sha3::{Digest, Sha3_512};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "ssr")]
-use crate::database::{DieselPool, models::Player};
+use crate::database::{models::Player, DieselPool};
 
 #[cfg(feature = "ssr")]
 #[derive(Clone, Debug)]
 pub struct Backend {
-    pool: DieselPool
+    pool: DieselPool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -33,9 +33,7 @@ pub enum AuthenticationError {
 #[cfg(feature = "ssr")]
 impl Backend {
     pub fn new(pool: DieselPool) -> Self {
-        Self {
-            pool
-        }
+        Self { pool }
     }
 }
 
@@ -45,7 +43,10 @@ impl AuthnBackend for Backend {
     type Credentials = Credentials;
     type Error = AuthenticationError;
 
-    async fn authenticate(&self, creds: Self::Credentials) -> Result<Option<Self::User>, Self::Error> {
+    async fn authenticate(
+        &self,
+        creds: Self::Credentials,
+    ) -> Result<Option<Self::User>, Self::Error> {
         use crate::database::find_player_for_email;
 
         let mut hasher = Sha3_512::default();
@@ -65,10 +66,8 @@ impl AuthnBackend for Backend {
                 } else {
                     Err(AuthenticationError::UserNotFound)
                 }
-            },
-            Err(_) => {
-                Err(AuthenticationError::DatabaseError)
             }
+            Err(_) => Err(AuthenticationError::DatabaseError),
         }
     }
 
@@ -78,12 +77,8 @@ impl AuthnBackend for Backend {
         let player = find_player_for_id(*player_id, &self.pool);
 
         match player {
-            Ok(player) => {
-                Ok(player)
-            },
-            Err(_) => {
-                Err(AuthenticationError::DatabaseError)
-            },
+            Ok(player) => Ok(player),
+            Err(_) => Err(AuthenticationError::DatabaseError),
         }
     }
 }
@@ -109,5 +104,5 @@ pub enum AuthError {
     #[error("invalid login")]
     InvalidLogin,
     #[error("backend error")]
-    Backend
+    Backend,
 }

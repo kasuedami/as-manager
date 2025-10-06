@@ -8,10 +8,7 @@ use crate::auth::AuthSession;
 
 #[component]
 pub fn Protected(children: ChildrenFn) -> impl IntoView {
-    let access_check = Resource::new(
-        || {},
-        |_| check_user_logged_in()
-    );
+    let access_check = Resource::new(|| {}, |_| check_user_logged_in());
 
     view! {
         <Suspense>

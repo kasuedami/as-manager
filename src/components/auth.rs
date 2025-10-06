@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "ssr")]
 use crate::auth::AuthSession;
-use crate::{app::AppError, auth::Credentials};
 #[cfg(feature = "ssr")]
 use crate::database::create_player;
+use crate::{app::AppError, auth::Credentials};
 
 #[component]
 pub fn Login() -> impl IntoView {
-    let do_login= ServerAction::<DoLogin>::new();
+    let do_login = ServerAction::<DoLogin>::new();
 
     view! {
         <div class="flex justify-center items-start h-screen pt-32 bg-gray-100">
@@ -110,7 +110,7 @@ async fn do_login(credentials: Credentials) -> Result<(), AppError> {
     };
 
     if auth_session.login(&player).await.is_err() {
-        return Err(AppError::AuthError(AuthError::Backend))
+        return Err(AppError::AuthError(AuthError::Backend));
     }
 
     Ok(())
@@ -126,18 +126,22 @@ struct RegisterForm {
 #[server]
 async fn do_register(register_form: RegisterForm) -> Result<bool, AppError> {
     use crate::database::DieselPool;
-    use crypto_hashes::sha3::{Sha3_512, Digest};
+    use crypto_hashes::sha3::{Digest, Sha3_512};
 
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
     let mut hasher = Sha3_512::default();
     hasher.update(register_form.password);
     let password_hash = format!("{:x}", hasher.finalize());
 
-    let register = create_player(register_form.email, register_form.tag_name, &password_hash.into_bytes(), &pool);
+    let register = create_player(
+        register_form.email,
+        register_form.tag_name,
+        &password_hash.into_bytes(),
+        &pool,
+    );
 
     match register {
         Ok(()) => Ok(true),
-        Err(err) => Err(AppError::Database(err))
+        Err(err) => Err(AppError::Database(err)),
     }
 }
