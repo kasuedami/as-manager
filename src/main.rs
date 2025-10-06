@@ -15,23 +15,20 @@ async fn main() {
     use leptos::logging::log;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use sqlx::PgPool;
     use diesel::{PgConnection, r2d2::{ConnectionManager, Pool}};
 
     dotenv().ok();
 
     let connection_url = env::var("DATABASE_URL").unwrap();
-    let pool = PgPool::connect(&connection_url).await.unwrap();
-
     let manager = ConnectionManager::<PgConnection>::new(connection_url);
-    let diesel_pool: DieselPool = Pool::builder()
+    let pool: DieselPool = Pool::builder()
         .build(manager)
         .expect("failed creating diesel connection pool");
 
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store);
 
-    let backend = Backend::new(diesel_pool.clone());
+    let backend = Backend::new(pool.clone());
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
 
     let conf = get_configuration(None).unwrap();
@@ -44,7 +41,7 @@ async fn main() {
             generate_route_list(App),
             move || {
                 provide_context(pool.clone());
-                provide_context(diesel_pool.clone());
+                provide_context(pool.clone());
             },
             {
                 let leptos_options = leptos_options.clone();

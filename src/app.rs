@@ -1,3 +1,5 @@
+use std::fmt;
+
 use leptos::{prelude::*, server_fn::codec::JsonEncoding};
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
@@ -53,6 +55,18 @@ impl FromServerFnError for AppError {
 impl From<ServerFnErrorErr> for AppError {
     fn from(value: ServerFnErrorErr) -> Self {
         AppError::from_server_fn_error(value)
+    }
+}
+
+impl From<DatabaseError> for AppError {
+    fn from(value: DatabaseError) -> Self {
+        AppError::Database(value)
+    }
+}
+
+impl fmt::Display for AppError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
