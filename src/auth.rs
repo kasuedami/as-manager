@@ -52,7 +52,7 @@ impl AuthnBackend for Backend {
         hasher.update(creds.password);
         let password_hash = format!("{:x}", hasher.finalize());
 
-        let player = find_player_for_email(&creds.email, &self.pool).await;
+        let player = find_player_for_email(&creds.email, &self.pool);
 
         match player {
             Ok(player) => {
@@ -75,7 +75,7 @@ impl AuthnBackend for Backend {
     async fn get_user(&self, player_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         use crate::database::find_player_for_id;
 
-        let player = find_player_for_id(*player_id, &self.pool).await;
+        let player = find_player_for_id(*player_id, &self.pool);
 
         match player {
             Ok(player) => {

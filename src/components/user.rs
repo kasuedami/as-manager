@@ -252,12 +252,14 @@ async fn load_player_by_id(id: i64) -> Result<Player, ServerFnError> {
 
 #[server]
 async fn save_player(player: Player) -> Result<(), AppError> {
-    use sqlx::PgPool;
     use crate::database;
+    use crate::database::DieselPool;
 
-    let pool = use_context::<PgPool>().ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
 
-    let result = database::save_player(player, &pool).await;
+    let result = database::save_player(player, &pool);
+
     match result {
         Err(err) => Err(AppError::Database(err)),
         _ => Ok(())
@@ -269,8 +271,9 @@ async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(),
     use crate::database::DieselPool;
     use crate::database;
 
-    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
-    let result = database::create_player(create_new_player.email, create_new_player.tag_name, b"", &pool).await;
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+    let result = database::create_player(create_new_player.email, create_new_player.tag_name, b"", &pool);
 
     match result {
         Ok(()) => Ok(()),
