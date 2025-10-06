@@ -2,7 +2,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ssr")]
-use sqlx::{postgres::PgQueryResult, prelude::FromRow, PgPool};
+use sqlx::{prelude::FromRow};
 #[cfg(feature = "ssr")]
 use diesel::{PgConnection, r2d2::{ConnectionManager, Pool}};
 
@@ -50,32 +50,24 @@ pub struct Player {
 }
 
 #[cfg(feature = "ssr")]
-pub async fn save_player(player: domain::Player, pool: &PgPool) -> Result<PgQueryResult, DatabaseError> {
-    let query_result = if let Some(id) = player.id {
-        sqlx::query("UPDATE Player SET tag_name = $1, email = $2 WHERE id = $3")
-            .bind(player.tag_name)
-            .bind(player.email)
-            .bind(id)
-            .execute(pool)
-            .await
-    } else {
-        sqlx::query("INSERT INTO Player (tag_name, email, active, team_id, password_hash) VALUES ($1, $2, $3, $4, '')")
-            .bind(player.tag_name)
-            .bind(player.email)
-            .bind(player.active)
-            .bind(player.team_id)
-            .execute(pool)
-            .await
-    };
+pub fn save_player(player: domain::Player, pool: &DieselPool) -> Result<(), DatabaseError> {
+    use diesel::{ExpressionMethods, RunQueryDsl};
+    use schema::players::dsl::*;
 
-    match query_result {
-        Ok(query_result) => Ok(query_result),
-        Err(_) => Err(DatabaseError::Sqlx)
-    }
+    diesel::update(players)
+        .set((
+            tag_name.eq(&player.tag_name),
+            email.eq(&player.email),
+            active.eq(&player.active),
+            team_id.eq(&player.team_id)
+        ))
+        .execute(&mut pool.get().expect("diesel"))
+        .map(|_| ())
+        .map_err(DatabaseError::from)
 }
 
 #[cfg(feature = "ssr")]
-pub async fn find_player_for_id(search_id: i64, pool: &DieselPool) -> Result<Option<models::Player>, DatabaseError> {
+pub fn find_player_for_id(search_id: i64, pool: &DieselPool) -> Result<Option<models::Player>, DatabaseError> {
     use schema::players::dsl::*;
     use diesel::{QueryDsl, RunQueryDsl, OptionalExtension};
 
@@ -86,7 +78,7 @@ pub async fn find_player_for_id(search_id: i64, pool: &DieselPool) -> Result<Opt
 }
 
 #[cfg(feature = "ssr")]
-pub async fn find_player_for_email(search_email: &str, pool: &DieselPool) -> Result<Option<models::Player>, DatabaseError> {
+pub fn find_player_for_email(search_email: &str, pool: &DieselPool) -> Result<Option<models::Player>, DatabaseError> {
     use schema::players::dsl::*;
     use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, OptionalExtension};
 
@@ -97,7 +89,7 @@ pub async fn find_player_for_email(search_email: &str, pool: &DieselPool) -> Res
 }
 
 #[cfg(feature = "ssr")]
-pub async fn create_player(new_player_email: String, new_player_tag_name: String, new_player_password_hash: &[u8], diesel_pool: &DieselPool) -> Result<(), DatabaseError> {
+pub fn create_player(new_player_email: String, new_player_tag_name: String, new_player_password_hash: &[u8], diesel_pool: &DieselPool) -> Result<(), DatabaseError> {
     use models::NewPlayer;
     use schema::players;
     use schema::players::dsl::*;
