@@ -295,8 +295,7 @@ pub fn PlayerEdit() -> impl IntoView {
                                                 type="checkbox"
                                                 name="player_form[active]"
                                                 class="w-4 h-4 accent-green-600 border-2 border-gray-300 rounded"
-                                                value=player.active.to_string()
-                                                checked=player.active.to_string()/>
+                                                checked=player.active.then_some(())/>
 
                                             <label for="player_form[team_id]" class="text-left text-gray-700">
                                                 "Team:"
@@ -355,6 +354,7 @@ struct EditPlayerForm {
     id: i64,
     email: String,
     tag_name: String,
+    #[serde(default)]
     active: String,
     team_id: Option<i64>,
 }
@@ -393,11 +393,16 @@ async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
 async fn save_player(player_form: EditPlayerForm) -> Result<(), AppError> {
     use crate::database::{self, DieselPool};
 
+    let active = match player_form.active.as_str() {
+        "on" => true,
+        _ => false
+    };
+
     let player = Player {
         id: Some(player_form.id),
         email: player_form.email,
         tag_name: player_form.tag_name,
-        active: player_form.active.parse().unwrap(),
+        active,
         team_id: player_form.team_id,
     };
 
