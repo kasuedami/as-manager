@@ -24,3 +24,23 @@ impl From<database::models::Player> for Player {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct Team {
+    pub id: Option<i64>,
+    pub name: String,
+    pub contact_person_id: Option<i64>,
+    pub platoon_id: Option<i64>,
+}
+
+#[cfg(feature = "ssr")]
+impl From<database::models::Team> for Team {
+    fn from(value: database::models::Team) -> Self {
+        Self { 
+            id: Some(value.id),
+            name: value.name,
+            contact_person_id: value.contact_person_id,
+            platoon_id: value.platoon_id,
+        }
+    }
+}

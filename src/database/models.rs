@@ -36,6 +36,14 @@ pub struct Team {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Insertable)]
+#[diesel(table_name = super::schema::teams)]
+pub struct NewTeam<'a> {
+    pub name: &'a str,
+    pub contact_person_id: Option<i64>,
+    pub platoon_id: Option<i64>,
+}
+
 #[derive(Queryable, Selectable, Debug, Clone)]
 #[diesel(table_name = super::schema::platoons)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
