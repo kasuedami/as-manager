@@ -431,7 +431,10 @@ async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(),
     );
 
     match result {
-        Ok(()) => Ok(()),
+        Ok(()) => {
+            leptos_axum::redirect("/players");
+            Ok(())
+        },
         Err(err) => Err(AppError::Database(err)),
     }
 }

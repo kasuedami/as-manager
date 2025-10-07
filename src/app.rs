@@ -90,6 +90,8 @@ pub fn App() -> impl IntoView {
                         </ParentRoute>
                         <ParentRoute path=path!("/teams") view=Teams>
                             <Route path=path!("") view=TeamsTable/>
+                            <Route path=path!("new") view=TeamNew/>
+                            <Route path=path!(":id/edit") view=TeamEdit/>
                             <Route path=path!(":id") view=TeamProfile/>
                         </ParentRoute>
                         <ParentRoute path=path!("/events") view=PlayEvents>
