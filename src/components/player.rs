@@ -289,7 +289,8 @@ pub fn PlayerEdit() -> impl IntoView {
                                                 type="checkbox"
                                                 name="player_form[active]"
                                                 class="w-4 h-4 accent-green-600 border-2 border-gray-300 rounded"
-                                                checked=player.active.then_some(())/>
+                                                value="true"
+                                                checked=player.active/>
 
                                             <label for="player_form[team_id]" class="text-left text-gray-700">
                                                 "Team:"
@@ -349,7 +350,7 @@ struct EditPlayerForm {
     email: String,
     tag_name: String,
     #[serde(default)]
-    active: String,
+    active: bool,
     team_id: Option<i64>,
 }
 
@@ -392,16 +393,11 @@ async fn save_player(player_form: EditPlayerForm) -> Result<(), AppError> {
     let pool = use_context::<DieselPool>()
         .ok_or_else(|| AppError::MissingContext)?;
 
-    let active = match player_form.active.as_str() {
-        "on" => true,
-        _ => false
-    };
-
     let player = Player {
         id: Some(player_form.id),
         email: player_form.email,
         tag_name: player_form.tag_name,
-        active,
+        active: player_form.active,
         team_id: player_form.team_id,
     };
 
