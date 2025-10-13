@@ -64,6 +64,26 @@ pub fn find_player_for_email(
 }
 
 #[cfg(feature = "ssr")]
+pub fn get_players_for_name_filter(
+    filter_name: String,
+    pool: &DieselPool
+) -> Result<Vec<models::Player>, DatabaseError> {
+    use schema::players::dsl::*;
+
+    let mut query = players.into_boxed();
+
+    if !filter_name.is_empty() {
+        use diesel::PgTextExpressionMethods;
+
+        let pattern = format!("%{}%", filter_name);
+        query = query.filter(tag_name.ilike(pattern));
+    }
+
+    Ok(query.load::<models::Player>(&mut pool.get().expect("diesel"))?)
+}
+
+
+#[cfg(feature = "ssr")]
 pub fn get_all_players(pool: &DieselPool) -> Result<Vec<models::Player>, DatabaseError> {
     use schema::players;
 
@@ -185,7 +205,7 @@ pub fn save_team(team: domain::Team, pool: &DieselPool) -> Result<(), DatabaseEr
         .map_err(DatabaseError::from)
 }
 
-#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DatabaseError {
     #[error("entity not found")]
     EntityNotFound,

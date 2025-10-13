@@ -1,17 +1,20 @@
+use std::sync::Arc;
+
+use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_router::{components::A, hooks::use_params, params::Params};
 use serde::{Deserialize, Serialize};
 
+use crate::domain::Player;
 use crate::{app::AppError, domain::Team};
-use crate::components::util::{BackButton, OptionalLink};
+use crate::components::util::{BackButton, OptionalLink, SelectFromServer};
 
 #[component]
 pub fn Teams() -> impl IntoView {
     use crate::components::protected::Protected;
     use leptos_router::components::Outlet;
 
-    view! {
-        <Protected>
+    view! { <Protected>
             <Outlet/>
         </Protected>
     }
@@ -102,6 +105,14 @@ pub fn TeamProfile() -> impl IntoView {
         move |team_id| load_team_by_id(team_id.unwrap().id.unwrap()),
     );
 
+    let contact_person = Resource::new(
+        move || {
+            team.get()
+                .and_then(|res| res.as_ref().ok().map(|team| team.contact_person_id)).flatten()
+        },
+        |id| find_player_for_id(id),
+    );
+
     view! {
         <BackButton/>
         <div class="p-8 max-w-4xl mx-auto">
@@ -141,11 +152,18 @@ pub fn TeamProfile() -> impl IntoView {
                                             name="view_team[contact_person]"
                                             class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
 
-                                            <OptionalLink value=team.contact_person_id
-                                                text=|id| format!("Ansprechpartner Id: {}", id)
-                                                href=|id| format!("/users/{}", id)
-                                                fallback=move || view! { "Kein Ansprechpartner" }
-                                            />
+                                            {
+                                                contact_person.get().map(|result| match result {
+                                                    Ok(contact_person) => view! {
+                                                        <OptionalLink value=contact_person
+                                                            text=|contact_person| format!("{}", contact_person.tag_name)
+                                                            href=|contact_person| format!("/players/{}", contact_person.id.unwrap())
+                                                            fallback=move || view! { "Kein Ansprechpartner" }
+                                                        />
+                                                    },
+                                                    Err(_) => todo!(),
+                                                })
+                                            }
                                         </output>
 
                                         <label for="view_team[platoon]" class="text-left text-gray-700">
@@ -227,66 +245,99 @@ pub fn TeamEdit() -> impl IntoView {
 
     let team_id = use_params::<TeamIdParameter>();
     let team = Resource::new(
-        move || team_id.read().clone(),
-        move |team_id| load_team_by_id(team_id.unwrap().id.unwrap()),
+        move || {
+            log!("team source");
+            team_id.read().clone()
+        },
+        |team_id| load_team_by_id(team_id.unwrap().id.unwrap()),
+    );
+
+    let contact_person = Resource::new(
+        move || {
+            log!("contact person source");
+            team.get()
+                .and_then(|res| res.as_ref().ok().map(|team| team.contact_person_id)).flatten()
+        },
+        |id| find_player_for_id(id),
     );
 
     let save_team = ServerAction::<SaveTeam>::new();
+    let get_filtered = Action::new(|filter: &String| {
+        get_filtered_players(filter.to_string())
+    });
 
     view! {
         <div class="p-8 max-w-4xl mx-auto">
 
             <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
-                {
-                    move || {
-                        team.get().map(|result| match result {
-                            Ok(team) => view! {
-                                <ActionForm action=save_team>
-                                    <div class="flex items-center justify-between mb-6">
-                                        <h1 class="text-2xl font-semibold">
-                                            "Team " { team.name.clone() } " bearbeiten"
-                                        </h1>
+                {move || {
+                    team.get().map(|result| match result {
+                        Ok(team) => view! {
+                            <ActionForm action=save_team>
+                                <div class="flex items-center justify-between mb-6">
+                                    <h1 class="text-2xl font-semibold">
+                                        "Team " { team.name.clone() } " bearbeiten"
+                                    </h1>
+                                </div>
+
+                                <div class="space-y-4">
+
+                                    <div class="grid grid-cols-[auto_1fr] items-center gap-4">
+                                        <label for="team_form[name]"
+                                            class="text-left text-gray-700">
+                                            "Email:"
+                                        </label>
+                                        <input
+                                            name="team_form[name]"
+                                            class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                                            value=team.name/>
+
+                                        <label for="team_form[contact_person]"
+                                            class="text-left text-gray-700">
+                                            "Ansprechpartner:"
+                                        </label>
+                                        {move || {
+                                            contact_person.get().map(|result| match result {
+                                                Ok(contact_person) => view! {
+                                                    <SelectFromServer
+                                                        name="team_form[contact_person_id]"
+                                                        current_value=contact_person
+                                                        options_action=get_filtered
+                                                        option_text=Arc::new(move |player: &Player| player.tag_name.clone())
+                                                        default_text="Kein Ansprechpartner"
+                                                    />
+                                                }.into_any(),
+                                                Err(e) => view! { <p>{ e.to_string() }</p> }.into_any()
+                                            })
+                                        }}
+
+                                        <input
+                                            type="hidden"
+                                            name="team_form[id]"
+                                            value=team.id.unwrap()/>
                                     </div>
+                                </div>
 
-                                    <div class="space-y-4">
-
-                                        <div class="grid grid-cols-[auto_1fr] items-center gap-4">
-                                            <label for="team_form[name]" class="text-left text-gray-700">
-                                                "Email:"
-                                            </label>
-                                            <input
-                                                name="team_form[name]"
-                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
-                                                value=team.name/>
-
-                                            <input
-                                                type="hidden"
-                                                name="team_form[id]"
-                                                value=team.id.unwrap()/>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex justify-end gap-2 mt-6">
-                                        <A href=format!("/teams/{}", team.id.unwrap())
-                                            attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
-                                        >
-                                            "Abbrechen"
-                                        </A>
-                                        <button
-                                            type="submit"
-                                            class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-                                        >
-                                            "Speichern"
-                                        </button>
-                                    </div>
-                                </ActionForm>
-                            }.into_any(),
-                            Err(e) => view! {
-                                <p>{ e.to_string() }</p>
-                            }.into_any(),
-                        })
-                    }
-                }
+                                <div class="flex justify-end gap-2 mt-6">
+                                    <A href=format!("/teams/{}", team.id.unwrap())
+                                        attr:class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+                                    >
+                                        "Abbrechen"
+                                    </A>
+                                    <button
+                                        type="submit"
+                                        class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        "Speichern"
+                                    </button>
+                                </div>
+                            </ActionForm>
+                        }.into_any(),
+                        Err(e) => view! {
+                            <p>{ e.to_string() }</p>
+                        }.into_any(),
+                    })
+                }}
             </Suspense>
         </div>
     }
@@ -306,6 +357,8 @@ struct CreateNewTeamForm {
 struct EditTeamForm {
     id: i64,
     name: String,
+    #[serde(default)]
+    contact_person_id: Option<i64>,
 }
 
 #[server]
@@ -368,7 +421,7 @@ async fn save_team(team_form: EditTeamForm) -> Result<(), AppError> {
     let team = Team {
         id: Some(team_form.id),
         name: team_form.name,
-        contact_person_id: None,
+        contact_person_id: team_form.contact_person_id,
         platoon_id: None,
     };
 
@@ -383,3 +436,52 @@ async fn save_team(team_form: EditTeamForm) -> Result<(), AppError> {
     }
 }
 
+#[server]
+async fn get_filtered_players(filter: String) -> Result<Vec<Player>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_players = database::get_players_for_name_filter(filter, &pool)?;
+    let domain_players = database_players
+        .into_iter()
+        .map(|db_player| db_player.into())
+        .collect();
+
+    Ok(domain_players)
+}
+
+#[server]
+async fn get_all_players() -> Result<Vec<Player>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_players = database::get_all_players(&pool)?;
+    let domain_players = database_players
+        .into_iter()
+        .map(|db_player| db_player.into())
+        .collect();
+
+    Ok(domain_players)
+}
+
+#[server]
+async fn find_player_for_id(id: Option<i64>) -> Result<Option<Player>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    if id.is_none() {
+        return Ok(None)
+    }
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_player = database::find_player_for_id(id.unwrap(), &pool);
+    let domain_player = database_player
+        .map(|db_player| db_player.map(Into::into));
+
+    Ok(domain_player?)
+}
