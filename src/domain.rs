@@ -57,6 +57,36 @@ impl From<database::models::Team> for Team {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub struct Platoon {
+    pub id: Option<i64>,
+    pub team: String,
+    pub name: String,
+    pub motto: String,
+    pub leader_id: Option<i64>,
+    pub deputy_leader_id: Option<i64>,
+}
+
+impl PrimaryKey for Platoon {
+    fn key(&self) -> Option<i64> {
+        self.id
+    }
+}
+
+#[cfg(feature = "ssr")]
+impl From<database::models::Platoon> for Platoon {
+    fn from(value: database::models::Platoon) -> Self {
+        Self { 
+            id: Some(value.id),
+            team: value.team,
+            name: value.name,
+            motto: value.motto,
+            leader_id: value.leader_id,
+            deputy_leader_id: value.deputy_leader_id,
+        }
+    }
+}
+
 pub trait PrimaryKey {
     fn key(&self) -> Option<i64>;
 }

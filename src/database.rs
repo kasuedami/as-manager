@@ -82,7 +82,6 @@ pub fn get_players_for_name_filter(
     Ok(query.load::<models::Player>(&mut pool.get().expect("diesel"))?)
 }
 
-
 #[cfg(feature = "ssr")]
 pub fn get_all_players(pool: &DieselPool) -> Result<Vec<models::Player>, DatabaseError> {
     use schema::players;
@@ -203,6 +202,39 @@ pub fn save_team(team: domain::Team, pool: &DieselPool) -> Result<(), DatabaseEr
         .execute(&mut pool.get().expect("diesel"))
         .map(|_| ())
         .map_err(DatabaseError::from)
+}
+
+#[cfg(feature = "ssr")]
+pub fn find_platoon_for_id(
+    search_id: i64,
+    pool: &DieselPool,
+) -> Result<Option<models::Platoon>, DatabaseError> {
+    use schema::platoons::dsl::*;
+
+    platoons
+        .find(search_id)
+        .get_result(&mut pool.get().expect("diesel"))
+        .optional()
+        .map_err(DatabaseError::from)
+}
+
+#[cfg(feature = "ssr")]
+pub fn get_platoons_for_name_filter(
+    filter_name: String,
+    pool: &DieselPool
+) -> Result<Vec<models::Platoon>, DatabaseError> {
+    use schema::platoons::dsl::*;
+
+    let mut query = platoons.into_boxed();
+
+    if !filter_name.is_empty() {
+        use diesel::PgTextExpressionMethods;
+
+        let pattern = format!("%{}%", filter_name);
+        query = query.filter(name.ilike(pattern));
+    }
+
+    Ok(query.load::<models::Platoon>(&mut pool.get().expect("diesel"))?)
 }
 
 #[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize, PartialEq, Eq)]

@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_router::{components::A, hooks::use_params, params::Params};
 use serde::{Deserialize, Serialize};
 
-use crate::domain::Player;
+use crate::domain::{Platoon, Player};
 use crate::{app::AppError, domain::Team};
 use crate::components::util::{BackButton, OptionalLink, SelectFromServer};
 
@@ -113,6 +112,14 @@ pub fn TeamProfile() -> impl IntoView {
         |id| find_player_for_id(id),
     );
 
+    let platoon = Resource::new(
+        move || {
+            team.get()
+                .and_then(|res| res.as_ref().ok().map(|team| team.platoon_id)).flatten()
+        },
+        |id| find_platoon_for_id(id),
+    );
+
     view! {
         <BackButton/>
         <div class="p-8 max-w-4xl mx-auto">
@@ -160,8 +167,8 @@ pub fn TeamProfile() -> impl IntoView {
                                                             href=|contact_person| format!("/players/{}", contact_person.id.unwrap())
                                                             fallback=move || view! { "Kein Ansprechpartner" }
                                                         />
-                                                    },
-                                                    Err(_) => todo!(),
+                                                    }.into_any(),
+                                                    Err(e) => view! { <p>{ e.to_string() }</p> }.into_any(),
                                                 })
                                             }
                                         </output>
@@ -173,11 +180,18 @@ pub fn TeamProfile() -> impl IntoView {
                                             name="view_team[platoon]"
                                             class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
 
-                                            <OptionalLink value=team.platoon_id
-                                                text=|id| format!("Zug Id: {}", id)
-                                                href=|id| format!("/platoon/{}", id)
-                                                fallback=move || view! { "Kein Zug" }
-                                            />
+                                            {
+                                                platoon.get().map(|result| match result {
+                                                    Ok(platoon) => view! {
+                                                        <OptionalLink value=platoon
+                                                            text=|platoon| format!("{}", platoon.name)
+                                                            href=|platoon| format!("/platoons/{}", platoon.id.unwrap())
+                                                            fallback=move || view! { "Kein Zug" }
+                                                        />
+                                                    }.into_any(),
+                                                    Err(e) => view! { <p>{ e.to_string() }</p> }.into_any(),
+                                                })
+                                            }
                                         </output>
                                     </div>
                                 </div>
@@ -245,25 +259,32 @@ pub fn TeamEdit() -> impl IntoView {
 
     let team_id = use_params::<TeamIdParameter>();
     let team = Resource::new(
-        move || {
-            log!("team source");
-            team_id.read().clone()
-        },
+        move || team_id.read().clone(),
         |team_id| load_team_by_id(team_id.unwrap().id.unwrap()),
     );
 
     let contact_person = Resource::new(
         move || {
-            log!("contact person source");
             team.get()
                 .and_then(|res| res.as_ref().ok().map(|team| team.contact_person_id)).flatten()
         },
         |id| find_player_for_id(id),
     );
 
+    let platoon = Resource::new(
+        move || {
+            team.get()
+                .and_then(|res| res.as_ref().ok().map(|team| team.platoon_id)).flatten()
+        },
+        |id| find_platoon_for_id(id),
+    );
+
     let save_team = ServerAction::<SaveTeam>::new();
-    let get_filtered = Action::new(|filter: &String| {
+    let get_filtered_players = Action::new(|filter: &String| {
         get_filtered_players(filter.to_string())
+    });
+    let get_filtered_platoons = Action::new(|filter: &String| {
+        get_filtered_platoons(filter.to_string())
     });
 
     view! {
@@ -292,7 +313,7 @@ pub fn TeamEdit() -> impl IntoView {
                                             class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
                                             value=team.name/>
 
-                                        <label for="team_form[contact_person]"
+                                        <label for="team_form[contact_person_id]"
                                             class="text-left text-gray-700">
                                             "Ansprechpartner:"
                                         </label>
@@ -302,9 +323,28 @@ pub fn TeamEdit() -> impl IntoView {
                                                     <SelectFromServer
                                                         name="team_form[contact_person_id]"
                                                         current_value=contact_person
-                                                        options_action=get_filtered
+                                                        options_action=get_filtered_players
                                                         option_text=Arc::new(move |player: &Player| player.tag_name.clone())
                                                         default_text="Kein Ansprechpartner"
+                                                    />
+                                                }.into_any(),
+                                                Err(e) => view! { <p>{ e.to_string() }</p> }.into_any()
+                                            })
+                                        }}
+
+                                        <label for="team_form[platoon_id]"
+                                            class="text-left text-gray-700">
+                                            "Zug:"
+                                        </label>
+                                        {move || {
+                                            platoon.get().map(|result| match result {
+                                                Ok(platoon) => view! {
+                                                    <SelectFromServer
+                                                        name="team_form[platoon_id]"
+                                                        current_value=platoon
+                                                        options_action=get_filtered_platoons
+                                                        option_text=Arc::new(move |platoon: &Platoon| platoon.name.clone())
+                                                        default_text="Kein Zug"
                                                     />
                                                 }.into_any(),
                                                 Err(e) => view! { <p>{ e.to_string() }</p> }.into_any()
@@ -359,6 +399,8 @@ struct EditTeamForm {
     name: String,
     #[serde(default)]
     contact_person_id: Option<i64>,
+    #[serde(default)]
+    platoon_id: Option<i64>,
 }
 
 #[server]
@@ -437,6 +479,22 @@ async fn save_team(team_form: EditTeamForm) -> Result<(), AppError> {
 }
 
 #[server]
+async fn get_all_players() -> Result<Vec<Player>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_players = database::get_all_players(&pool)?;
+    let domain_players = database_players
+        .into_iter()
+        .map(|db_player| db_player.into())
+        .collect();
+
+    Ok(domain_players)
+}
+
+#[server]
 async fn get_filtered_players(filter: String) -> Result<Vec<Player>, AppError> {
     use crate::database::{self, DieselPool};
 
@@ -452,21 +510,6 @@ async fn get_filtered_players(filter: String) -> Result<Vec<Player>, AppError> {
     Ok(domain_players)
 }
 
-#[server]
-async fn get_all_players() -> Result<Vec<Player>, AppError> {
-    use crate::database::{self, DieselPool};
-
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
-
-    let database_players = database::get_all_players(&pool)?;
-    let domain_players = database_players
-        .into_iter()
-        .map(|db_player| db_player.into())
-        .collect();
-
-    Ok(domain_players)
-}
 
 #[server]
 async fn find_player_for_id(id: Option<i64>) -> Result<Option<Player>, AppError> {
@@ -484,4 +527,38 @@ async fn find_player_for_id(id: Option<i64>) -> Result<Option<Player>, AppError>
         .map(|db_player| db_player.map(Into::into));
 
     Ok(domain_player?)
+}
+
+#[server]
+async fn get_filtered_platoons(filter: String) -> Result<Vec<Platoon>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_platoons = database::get_platoons_for_name_filter(filter, &pool)?;
+    let domain_platoons = database_platoons
+        .into_iter()
+        .map(|db_platoon| db_platoon.into())
+        .collect();
+
+    Ok(domain_platoons)
+}
+
+#[server]
+async fn find_platoon_for_id(id: Option<i64>) -> Result<Option<Platoon>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    if id.is_none() {
+        return Ok(None)
+    }
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_platoon = database::find_platoon_for_id(id.unwrap(), &pool);
+    let domain_platoon = database_platoon
+        .map(|db_platoon| db_platoon.map(Into::into));
+
+    Ok(domain_platoon?)
 }
