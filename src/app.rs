@@ -31,7 +31,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum AppError {
     LeptosError(ServerFnErrorErr),
     Database(DatabaseError),

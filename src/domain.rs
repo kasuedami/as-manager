@@ -12,6 +12,12 @@ pub struct Player {
     pub team_id: Option<i64>,
 }
 
+impl PrimaryKey for Player {
+    fn key(&self) -> Option<i64> {
+        self.id
+    }
+}
+
 #[cfg(feature = "ssr")]
 impl From<database::models::Player> for Player {
     fn from(value: database::models::Player) -> Self {
@@ -25,12 +31,18 @@ impl From<database::models::Player> for Player {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct Team {
     pub id: Option<i64>,
     pub name: String,
     pub contact_person_id: Option<i64>,
     pub platoon_id: Option<i64>,
+}
+
+impl PrimaryKey for Team {
+    fn key(&self) -> Option<i64> {
+        self.id
+    }
 }
 
 #[cfg(feature = "ssr")]
@@ -43,4 +55,8 @@ impl From<database::models::Team> for Team {
             platoon_id: value.platoon_id,
         }
     }
+}
+
+pub trait PrimaryKey {
+    fn key(&self) -> Option<i64>;
 }
