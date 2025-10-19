@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router::{components::A, hooks::use_params, params::Params};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +15,8 @@ pub fn Teams() -> impl IntoView {
     use crate::components::protected::Protected;
     use leptos_router::components::Outlet;
 
-    view! { <Protected>
+    view! {
+        <Protected>
             <Outlet/>
         </Protected>
     }
@@ -104,6 +107,11 @@ pub fn TeamProfile() -> impl IntoView {
         move |team_id| load_team_by_id(team_id.unwrap().id.unwrap()),
     );
 
+    let members = Resource::new(
+        move || team_id.read().clone(),
+        move |team_id| get_players_for_team(team_id.unwrap().id.unwrap()),
+    );
+
     let contact_person = Resource::new(
         move || {
             team.get()
@@ -119,6 +127,7 @@ pub fn TeamProfile() -> impl IntoView {
         },
         |id| find_platoon_for_id(id),
     );
+
 
     view! {
         <BackButton/>
@@ -174,7 +183,7 @@ pub fn TeamProfile() -> impl IntoView {
                                         </output>
 
                                         <label for="view_team[platoon]" class="text-left text-gray-700">
-                                            "Team:"
+                                            "Zug:"
                                         </label>
                                         <output
                                             name="view_team[platoon]"
@@ -193,6 +202,10 @@ pub fn TeamProfile() -> impl IntoView {
                                                 })
                                             }
                                         </output>
+
+                                        <div class="col-span-2">
+                                            <MembersTable members=members/>
+                                        </div>
                                     </div>
                                 </div>
                             }.into_any(),
@@ -262,6 +275,42 @@ pub fn TeamEdit() -> impl IntoView {
         move || team_id.read().clone(),
         |team_id| load_team_by_id(team_id.unwrap().id.unwrap()),
     );
+
+    let members = RwSignal::new(vec![]);
+    let members_resource = Resource::new(
+        move || team_id.read().clone(),
+        move |team_id| get_players_for_team(team_id.unwrap().id.unwrap()),
+    );
+
+    let new_member_ids = RwSignal::new(String::new());
+    let removed_member_ids = RwSignal::new(String::new());
+
+    Effect::new(move || {
+        let starting_ids: HashSet<i64> = if let Some(Ok(members)) = members_resource.get() {
+            members.iter()
+                .flat_map(|member: &Player| member.id)
+                .collect()
+        } else {
+            HashSet::new()
+        };
+
+        let current_ids: HashSet<i64> = members.get()
+            .iter()
+            .flat_map(|member: &Player| member.id)
+            .collect();
+
+        let new_ids: Vec<String> = current_ids.difference(&starting_ids)
+            .cloned()
+            .map(|id| id.to_string())
+            .collect();
+        let removed_ids: Vec<String> = starting_ids.difference(&current_ids)
+            .cloned()
+            .map(|id| id.to_string())
+            .collect();
+
+        new_member_ids.set(new_ids.join(","));
+        removed_member_ids.set(removed_ids.join(","));
+    });
 
     let contact_person = Resource::new(
         move || {
@@ -351,10 +400,27 @@ pub fn TeamEdit() -> impl IntoView {
                                             })
                                         }}
 
+                                        <div class="col-span-2">
+                                            <MembersEditTable members_resource=members_resource members=members/>
+                                        </div>
+
+                                        <input
+                                            type="hidden"
+                                            name="team_form[new_member_ids]"
+                                            value=new_member_ids
+                                        />
+
+                                        <input
+                                            type="hidden"
+                                            name="team_form[removed_member_ids]"
+                                            value=removed_member_ids
+                                        />
+
                                         <input
                                             type="hidden"
                                             name="team_form[id]"
-                                            value=team.id.unwrap()/>
+                                            value=team.id.unwrap()
+                                        />
                                     </div>
                                 </div>
 
@@ -383,6 +449,170 @@ pub fn TeamEdit() -> impl IntoView {
     }
 }
 
+#[component]
+fn MembersTable(members: Resource<Result<Vec<Player>, AppError>>) -> impl IntoView {
+    use super::util::BoolSymbol;
+
+    view! {
+        <h2 class="text-left text-xl font-semibold py-2">Mitglieder</h2>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full border border-gray-200 shadow-sm rounded-md bg-white">
+                <thead class="bg-gray-100 text-gray-700">
+                    <tr>
+                        <th class="text-left py-2 px-4 border-b">Id</th>
+                        <th class="text-left py-2 px-4 border-b">Spilername</th>
+                        <th class="text-left py-2 px-4 border-b">Email</th>
+                        <th class="py-2 px-4 border-b">Aktiv</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
+                    { move || {
+                        members.get().map(|result| match result {
+                            Ok(members) => members
+                                .into_iter()
+                                .map(|member| view! {
+                                    <tr class="hover:bg-gray-50">
+                                        <th class="text-left py-2 px-4 border-b">
+                                            <A href=format!("/players/{}", member.id.unwrap()) attr:class="hover:underline">{member.id}</A>
+                                        </th>
+                                        <th class="text-left py-2 px-4 border-b">
+                                            <A href=format!("/players/{}", member.id.unwrap()) attr:class="hover:underline">{member.tag_name}</A>
+                                        </th>
+                                        <th class="text-left py-2 px-4 border-b">
+                                            <A href=format!("/players/{}", member.id.unwrap()) attr:class="hover:underline">{member.email}</A>
+                                        </th>
+                                        <th class="py-2 px-4 border-b">
+                                            <div class="flex justify-center">
+                                                <BoolSymbol value=member.active/>
+                                            </div>
+                                        </th>
+                                    </tr>
+                                })
+                                .collect_view().into_any(),
+                            Err(e) => view! {
+                                <p>{ e.to_string() }</p>
+                            }.into_any(),
+                        })
+                    }}
+                    </Suspense>
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+#[component]
+fn MembersEditTable(members_resource: Resource<Result<Vec<Player>, AppError>>, members: RwSignal<Vec<Player>>) -> impl IntoView {
+    use super::util::BoolSymbol;
+
+    Effect::new(move |_| {
+        if let Some(Ok(data)) = members_resource.get() {
+            members.set(data);
+        }
+    });
+
+    let (new_member_email, set_new_member_email) = signal(String::new());
+
+    let add_member = move |_| {
+        let email = new_member_email.get();
+
+        spawn_local(async move {
+            let new_member = find_player_for_email(email).await;
+
+            match new_member {
+                Ok(Some(player)) => {
+                    members.update(|m| m.push(player));
+                },
+                _ => ()
+            }
+        });
+    };
+
+    let remove_member = move |id: i64| {
+        members.update(|members|
+            members.retain(|member| member.id.unwrap() != id));
+    };
+
+    view! {
+        <div class="py-2 flex items-center justify-between">
+            <h2 class="text-left text-xl font-semibold py-2">Mitglieder</h2>
+            <div class="w-1/2 flex">
+                <input
+                    class="flex-grow px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    prop:value=new_member_email
+                    on:input:target=move |ev| {
+                        set_new_member_email.set(ev.target().value());
+                    }
+                />
+                <button
+                    type="button"
+                    class="px-4 py-2 ml-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                    on:click=add_member>
+                        "Hinzufügen"
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="table-auto min-w-full border border-gray-200 shadow-sm rounded-md bg-white">
+                <thead class="bg-gray-100 text-gray-700">
+                    <tr>
+                        <th class="text-left py-2 px-4 border-b">Id</th>
+                        <th class="text-left py-2 px-4 border-b">Spilername</th>
+                        <th class="text-left py-2 px-4 border-b">Email</th>
+                        <th class="py-2 px-4 border-b">Aktiv</th>
+                        <th class="py-2 px-4 border-b max-w-min">Entfernen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <Suspense fallback=move || view! { <p>"Lade Daten..."</p> }>
+                    { move || match members_resource.get() {
+                        Some(Ok(_)) => {
+                            members
+                                .get()
+                                .into_iter()
+                                .map(|member| view! {
+                                    <tr class="hover:bg-gray-50">
+                                        <th class="text-left py-2 px-4 border-b">
+                                            <A href=format!("/players/{}", member.id.unwrap()) attr:class="hover:underline">{member.id}</A>
+                                        </th>
+                                        <th class="text-left py-2 px-4 border-b">
+                                            <A href=format!("/players/{}", member.id.unwrap()) attr:class="hover:underline">{member.tag_name}</A>
+                                        </th>
+                                        <th class="text-left py-2 px-4 border-b">
+                                            <A href=format!("/players/{}", member.id.unwrap()) attr:class="hover:underline">{member.email}</A>
+                                        </th>
+                                        <th class="py-2 px-4 border-b">
+                                            <div class="flex justify-center">
+                                                <BoolSymbol value=member.active/>
+                                            </div>
+                                        </th>
+                                        <th class="py-2 px-4 border-b max-w-min">
+                                            <button
+                                                type="button"
+                                                class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                                                on:click=move |_| remove_member(member.id.unwrap())>
+                                                    "Entfernen"
+                                            </button>
+                                        </th>
+                                    </tr>
+                                })
+                                .collect_view().into_any()
+                            },
+                        Some(Err(e)) => view! {
+                            <p>{ e.to_string() }</p>
+                        }.into_any(),
+                        None => view! { "Lade Daten..." }.into_any(),
+                    }}
+                    </Suspense>
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
 #[derive(Params, PartialEq, Clone)]
 struct TeamIdParameter {
     id: Option<i64>,
@@ -401,6 +631,10 @@ struct EditTeamForm {
     contact_person_id: Option<i64>,
     #[serde(default)]
     platoon_id: Option<i64>,
+    #[serde(default)]
+    new_member_ids: String,
+    #[serde(default)]
+    removed_member_ids: String,
 }
 
 #[server]
@@ -457,6 +691,15 @@ async fn create_new_team(create_new_team: CreateNewTeamForm) -> Result<(), AppEr
 async fn save_team(team_form: EditTeamForm) -> Result<(), AppError> {
     use crate::database::{self, DieselPool};
 
+    let new_member_ids: Vec<i64> = team_form.new_member_ids
+        .split(",")
+        .flat_map(|id| id.parse().ok())
+        .collect();
+    let removed_member_ids: Vec<i64> = team_form.removed_member_ids
+        .split(",")
+        .flat_map(|id| id.parse().ok())
+        .collect();
+
     let pool = use_context::<DieselPool>()
         .ok_or_else(|| AppError::MissingContext)?;
 
@@ -464,18 +707,13 @@ async fn save_team(team_form: EditTeamForm) -> Result<(), AppError> {
         id: Some(team_form.id),
         name: team_form.name,
         contact_person_id: team_form.contact_person_id,
-        platoon_id: None,
+        platoon_id: team_form.platoon_id,
     };
 
-    let result = database::save_team(team, &pool);
+    database::save_team(team, new_member_ids, removed_member_ids, &pool)?;
 
-    match result {
-        Ok(()) => {
-            leptos_axum::redirect("/teams");
-            Ok(())
-        },
-        Err(err) => Err(err.into()),
-    }
+    leptos_axum::redirect("/teams");
+    Ok(())
 }
 
 #[server]
@@ -556,9 +794,43 @@ async fn find_platoon_for_id(id: Option<i64>) -> Result<Option<Platoon>, AppErro
     let pool = use_context::<DieselPool>()
         .ok_or_else(|| AppError::MissingContext)?;
 
-    let database_platoon = database::find_platoon_for_id(id.unwrap(), &pool);
+    let database_platoon = database::find_platoon_for_id(id.unwrap(), &pool)?;
     let domain_platoon = database_platoon
-        .map(|db_platoon| db_platoon.map(Into::into));
+        .map(|db_platoon| db_platoon.into());
 
-    Ok(domain_platoon?)
+    Ok(domain_platoon)
+}
+
+#[server]
+async fn get_players_for_team(team_id: i64) -> Result<Vec<Player>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_players = database::get_players_for_team(team_id, &pool)?;
+    let domain_players = database_players
+        .into_iter()
+        .map(|db_player| db_player.into())
+        .collect();
+
+    Ok(domain_players)
+}
+
+#[server]
+async fn find_player_for_email(email: String) -> Result<Option<Player>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    if email.is_empty() {
+        return Ok(None)
+    }
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_player = database::find_player_for_email(&email, &pool);
+    let domain_player = database_player
+        .map(|db_player| db_player.map(Into::into));
+
+    Ok(domain_player?)
 }

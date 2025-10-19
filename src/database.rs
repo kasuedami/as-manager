@@ -92,6 +92,18 @@ pub fn get_all_players(pool: &DieselPool) -> Result<Vec<models::Player>, Databas
 }
 
 #[cfg(feature = "ssr")]
+pub fn get_players_for_team(filter_team_id: i64, pool: &DieselPool) -> Result<Vec<models::Player>, DatabaseError> {
+    use diesel::ExpressionMethods;
+    use schema::players::dsl::*;
+
+    let result = players
+        .filter(team_id.eq(Some(filter_team_id)))
+        .load::<models::Player>(&mut pool.get().expect("diesel"))?;
+
+    Ok(result)
+}
+
+#[cfg(feature = "ssr")]
 pub fn create_player(
     new_player_email: String,
     new_player_tag_name: String,
@@ -189,19 +201,48 @@ pub fn create_team(create_name: String, pool: &DieselPool) -> Result<(), Databas
 }
 
 #[cfg(feature = "ssr")]
-pub fn save_team(team: domain::Team, pool: &DieselPool) -> Result<(), DatabaseError> {
-    use schema::teams::dsl::*;
+pub fn save_team(
+    team: domain::Team,
+    new_member_ids: Vec<i64>,
+    removed_member_ids: Vec<i64>,
+    pool: &DieselPool
+) -> Result<(), DatabaseError> {
+    let connection = &mut pool.get().expect("diesel");
 
-    diesel::update(teams)
-        .filter(id.eq(team.id.unwrap()))
-        .set((
-            name.eq(&team.name),
-            contact_person_id.eq(team.contact_person_id),
-            platoon_id.eq(team.platoon_id),
-        ))
-        .execute(&mut pool.get().expect("diesel"))
-        .map(|_| ())
-        .map_err(DatabaseError::from)
+    {
+        use schema::teams::dsl::*;
+
+        diesel::update(teams)
+            .filter(id.eq(team.id.unwrap()))
+            .set((
+                name.eq(&team.name),
+                contact_person_id.eq(team.contact_person_id),
+                platoon_id.eq(team.platoon_id),
+            ))
+            .execute(connection)
+            .map(|_| ())
+            .map_err(DatabaseError::from)?;
+    }
+
+    {
+        use schema::players::dsl::*;
+
+        if !new_member_ids.is_empty() {
+            diesel::update(players)
+                .filter(id.eq_any(new_member_ids))
+                .set(team_id.eq(team.id))
+                .execute(connection)?;
+        }
+
+        if !removed_member_ids.is_empty() {
+            diesel::update(players)
+                .filter(id.eq_any(removed_member_ids))
+                .set(team_id.eq(None::<i64>))
+                .execute(connection)?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "ssr")]
