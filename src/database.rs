@@ -1,5 +1,9 @@
 #[cfg(feature = "ssr")]
+use std::collections::HashSet;
+
+#[cfg(feature = "ssr")]
 use diesel::{
+    dsl::count_star,
     ExpressionMethods,
     QueryDsl,
     RunQueryDsl,
@@ -203,8 +207,8 @@ pub fn create_team(create_name: String, pool: &DieselPool) -> Result<(), Databas
 #[cfg(feature = "ssr")]
 pub fn save_team(
     team: domain::Team,
-    new_member_ids: Vec<i64>,
-    removed_member_ids: Vec<i64>,
+    new_member_ids: HashSet<i64>,
+    removed_member_ids: HashSet<i64>,
     pool: &DieselPool
 ) -> Result<(), DatabaseError> {
     let connection = &mut pool.get().expect("diesel");
@@ -226,6 +230,25 @@ pub fn save_team(
 
     {
         use schema::players::dsl::*;
+
+        let mut new_member_ids = new_member_ids;
+        let mut removed_member_ids = removed_member_ids;
+
+        if let Some(contact_person_id) = team.contact_person_id {
+            let matches: i64 = players
+                .filter(id.eq(contact_person_id))
+                .filter(team_id.eq(team.id.unwrap()))
+                .select(count_star())
+                .first(connection)?;
+
+            if matches == 0 && !new_member_ids.contains(&contact_person_id) {
+                new_member_ids.insert(contact_person_id);
+            }
+
+            if removed_member_ids.contains(&contact_person_id) {
+                removed_member_ids.remove(&contact_person_id);
+            }
+        }
 
         if !new_member_ids.is_empty() {
             diesel::update(players)
