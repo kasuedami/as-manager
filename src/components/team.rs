@@ -691,11 +691,11 @@ async fn create_new_team(create_new_team: CreateNewTeamForm) -> Result<(), AppEr
 async fn save_team(team_form: EditTeamForm) -> Result<(), AppError> {
     use crate::database::{self, DieselPool};
 
-    let new_member_ids: Vec<i64> = team_form.new_member_ids
+    let new_member_ids: HashSet<i64> = team_form.new_member_ids
         .split(",")
         .flat_map(|id| id.parse().ok())
         .collect();
-    let removed_member_ids: Vec<i64> = team_form.removed_member_ids
+    let removed_member_ids: HashSet<i64> = team_form.removed_member_ids
         .split(",")
         .flat_map(|id| id.parse().ok())
         .collect();
