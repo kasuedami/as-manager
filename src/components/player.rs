@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use leptos::prelude::*;
 use leptos::Params;
 use leptos_router::{components::A, hooks::use_params, params::Params};
 use serde::{Deserialize, Serialize};
 
+use crate::domain::Team;
 use crate::{app::AppError, domain::Player};
-use crate::components::util::{BackButton, BoolSymbol, OptionalLink};
+use crate::components::util::{BackButton, BoolSymbol, OptionalLink, SelectFromServer};
 
 #[component]
 pub fn Players() -> impl IntoView {
@@ -246,7 +249,17 @@ pub fn PlayerEdit() -> impl IntoView {
         move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
     );
 
+    let team = Resource::new(
+        move || {
+            player.get().and_then(|res| res.as_ref().ok().map(|player| player.team_id)).flatten()
+        },
+        |id| find_team_for_id(id),
+    );
+
     let save_team = ServerAction::<SavePlayer>::new();
+    let get_filtered_teams = Action::new(|filter: &String| {
+        get_filtered_teams(filter.to_string())
+    });
 
     view! {
         <div class="p-8 max-w-4xl mx-auto">
@@ -295,10 +308,20 @@ pub fn PlayerEdit() -> impl IntoView {
                                             <label for="player_form[team_id]" class="text-left text-gray-700">
                                                 "Team:"
                                             </label>
-                                            <input
-                                                name="player_form[team_id]"
-                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
-                                                value=player.team_id/>
+                                            { move || {
+                                                team.get().map(|result| match result {
+                                                    Ok(team) => view! {
+                                                        <SelectFromServer
+                                                            name="player_form[team_id]"
+                                                            current_value=team
+                                                            options_action=get_filtered_teams
+                                                            option_text=Arc::new(move |team: &Team| team.name.clone())
+                                                            default_text="Kein Team"
+                                                        />
+                                                    }.into_any(),
+                                                    Err(e) => view! { <p>{ e.to_string() }</p> }.into_any(),
+                                                })
+                                            }}
 
                                             <input
                                                 type="hidden"
@@ -433,4 +456,37 @@ async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(),
         },
         Err(err) => Err(AppError::Database(err)),
     }
+}
+
+#[server]
+async fn find_team_for_id(id: Option<i64>) -> Result<Option<Team>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    if id.is_none() {
+        return Ok(None)
+    }
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_team = database::find_team_for_id(id.unwrap(), &pool)?;
+    let domain_team = database_team.map(|db_team| db_team.into());
+
+    Ok(domain_team)
+}
+
+#[server]
+async fn get_filtered_teams(filter: String) -> Result<Vec<Team>, AppError> {
+    use crate::database::{self, DieselPool};
+
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
+    let database_teams = database::get_teams_for_name_filter(filter, &pool)?;
+    let domain_teams = database_teams
+        .into_iter()
+        .map(|db_team| db_team.into())
+        .collect();
+
+    Ok(domain_teams)
 }

@@ -169,6 +169,25 @@ pub fn get_all_teams(pool: &DieselPool) -> Result<Vec<models::Team>, DatabaseErr
 }
 
 #[cfg(feature = "ssr")]
+pub fn get_teams_for_name_filter(
+    filter_name: String,
+    pool: &DieselPool
+) -> Result<Vec<models::Team>, DatabaseError> {
+    use schema::teams::dsl::*;
+
+    let mut query = teams.into_boxed();
+
+    if !filter_name.is_empty() {
+        use diesel::PgTextExpressionMethods;
+
+        let pattern = format!("%{}%", filter_name);
+        query = query.filter(name.ilike(pattern));
+    }
+
+    Ok(query.load::<models::Team>(&mut pool.get().expect("diesel"))?)
+}
+
+#[cfg(feature = "ssr")]
 pub fn find_team_for_id(
     search_id: i64,
     pool: &DieselPool

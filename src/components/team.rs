@@ -760,11 +760,11 @@ async fn find_player_for_id(id: Option<i64>) -> Result<Option<Player>, AppError>
     let pool = use_context::<DieselPool>()
         .ok_or_else(|| AppError::MissingContext)?;
 
-    let database_player = database::find_player_for_id(id.unwrap(), &pool);
+    let database_player = database::find_player_for_id(id.unwrap(), &pool)?;
     let domain_player = database_player
-        .map(|db_player| db_player.map(Into::into));
+        .map(|db_player| db_player.into());
 
-    Ok(domain_player?)
+    Ok(domain_player)
 }
 
 #[server]
