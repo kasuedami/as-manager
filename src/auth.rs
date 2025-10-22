@@ -99,7 +99,7 @@ impl AuthUser for Player {
 #[cfg(feature = "ssr")]
 pub type AuthSession = axum_login::AuthSession<Backend>;
 
-#[derive(Debug, Clone, thiserror::Error, Deserialize, Serialize)]
+#[derive(Debug, Clone, thiserror::Error, Deserialize, Serialize, PartialEq, Eq)]
 pub enum AuthError {
     #[error("invalid login")]
     InvalidLogin,
