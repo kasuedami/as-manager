@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use leptos::prelude::*;
 use leptos::Params;
 use leptos_router::{components::A, hooks::use_params, params::Params};
@@ -315,7 +313,7 @@ pub fn PlayerEdit() -> impl IntoView {
                                                             name="player_form[team_id]"
                                                             current_value=team
                                                             options_action=get_filtered_teams
-                                                            option_text=Arc::new(move |team: &Team| team.name.clone())
+                                                            option_text=move |team: &Team| team.name.clone()
                                                             default_text="Kein Team"
                                                         />
                                                     }.into_any(),

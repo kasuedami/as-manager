@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -86,15 +84,16 @@ where
 }
 
 #[component]
-pub fn SelectFromServer<D>(
+pub fn SelectFromServer<D, F>(
     #[prop(into)] name: String,
     #[prop(default = "None".to_string(), into)] default_text: String,
     #[prop(optional)] current_value: Option<Option<D>>,
     #[prop(into)] options_action: Action<String, Result<Vec<D>, AppError>>,
-    option_text: Arc<dyn Fn(&D) -> String + Send + Sync + 'static>,
+    option_text: F,
 ) -> impl IntoView
 where 
-    D: 'static + Send + Sync + Clone + Serialize + for<'a> Deserialize<'a> + PrimaryKey
+    D: 'static + Send + Sync + Clone + Serialize + for<'a> Deserialize<'a> + PrimaryKey,
+    F: Fn(&D) -> String + Send + Sync + 'static,
 {
     let filter = RwSignal::new(String::new());
     let open = RwSignal::new(false);

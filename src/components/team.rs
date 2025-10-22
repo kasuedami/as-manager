@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -373,7 +372,7 @@ pub fn TeamEdit() -> impl IntoView {
                                                         name="team_form[contact_person_id]"
                                                         current_value=contact_person
                                                         options_action=get_filtered_players
-                                                        option_text=Arc::new(move |player: &Player| player.tag_name.clone())
+                                                        option_text=move |player: &Player| player.tag_name.clone()
                                                         default_text="Kein Ansprechpartner"
                                                     />
                                                 }.into_any(),
@@ -392,7 +391,7 @@ pub fn TeamEdit() -> impl IntoView {
                                                         name="team_form[platoon_id]"
                                                         current_value=platoon
                                                         options_action=get_filtered_platoons
-                                                        option_text=Arc::new(move |platoon: &Platoon| platoon.name.clone())
+                                                        option_text=move |platoon: &Platoon| platoon.name.clone()
                                                         default_text="Kein Zug"
                                                     />
                                                 }.into_any(),
