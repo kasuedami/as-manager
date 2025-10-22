@@ -104,6 +104,13 @@ pub fn PlayerProfile() -> impl IntoView {
         move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
     );
 
+    let team = Resource::new(
+        move || {
+            player.get().and_then(|res| res.as_ref().ok().map(|player| player.team_id)).flatten()
+        },
+        |id| find_team_for_id(id),
+    );
+
     view! {
         <BackButton/>
         <div class="p-8 max-w-4xl mx-auto">
@@ -161,11 +168,18 @@ pub fn PlayerProfile() -> impl IntoView {
                                             name="view_player[team]"
                                             class="text-left w-full px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
 
-                                            <OptionalLink value=player.team_id
-                                                text=|id| format!("Team Id: {}", id)
-                                                href=|id| format!("/teams/{}", id)
-                                                fallback=move || view! { "Kein Team" }
-                                            />
+                                            { move || {
+                                                team.get().map(|result| match result {
+                                                    Ok(team) => view! {
+                                                        <OptionalLink value=team
+                                                            text=|team| format!("{}", team.name)
+                                                            href=|team| format!("/teams/{}", team.id.unwrap())
+                                                            fallback=move || view! { "Kein Team" }
+                                                        />
+                                                    }.into_any(),
+                                                    Err(e) => view! { <p>{ e.to_string() }</p> }.into_any(),
+                                                })
+                                            }}
                                         </output>
                                     </div>
                                 </div>
