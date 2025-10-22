@@ -1,12 +1,10 @@
 use leptos::prelude::*;
 use leptos::Params;
-use leptos_router::params::Params;
-use serde::Deserialize;
-use serde::Serialize;
+use leptos_router::{components::A, hooks::use_params, params::Params};
+use serde::{Deserialize, Serialize};
 
-use crate::app::AppError;
+use crate::{app::AppError, domain::Player};
 use crate::components::util::{BackButton, BoolSymbol, OptionalLink};
-use crate::domain::Player;
 
 #[component]
 pub fn Players() -> impl IntoView {
@@ -22,7 +20,6 @@ pub fn Players() -> impl IntoView {
 
 #[component]
 pub fn PlayersTable() -> impl IntoView {
-    use leptos_router::components::A;
 
     let players = Resource::new(|| {}, |_| get_players());
 
@@ -99,11 +96,10 @@ pub fn PlayersTable() -> impl IntoView {
 
 #[component]
 pub fn PlayerProfile() -> impl IntoView {
-    use leptos_router::{components::A, hooks::use_params};
 
-    let params = use_params::<PlayerIdParameter>();
+    let player_id = use_params::<PlayerIdParameter>();
     let player = Resource::new(
-        move || params.read().clone(),
+        move || player_id.read().clone(),
         move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
     );
 
@@ -186,7 +182,6 @@ pub fn PlayerProfile() -> impl IntoView {
 
 #[component]
 pub fn PlayerNew() -> impl IntoView {
-    use leptos_router::components::A;
 
     let create_new_player = ServerAction::<CreateNewPlayer>::new();
 
@@ -244,15 +239,14 @@ pub fn PlayerNew() -> impl IntoView {
 
 #[component]
 pub fn PlayerEdit() -> impl IntoView {
-    use leptos_router::{components::A, hooks::use_params};
 
-    let params = use_params::<PlayerIdParameter>();
+    let player_id = use_params::<PlayerIdParameter>();
     let player = Resource::new(
-        move || params.read().clone(),
+        move || player_id.read().clone(),
         move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
     );
 
-    let save = ServerAction::<SavePlayer>::new();
+    let save_team = ServerAction::<SavePlayer>::new();
 
     view! {
         <div class="p-8 max-w-4xl mx-auto">
@@ -262,7 +256,7 @@ pub fn PlayerEdit() -> impl IntoView {
                     move || {
                         player.get().map(|result| match result {
                             Ok(player) => view! {
-                                <ActionForm action=save>
+                                <ActionForm action=save_team>
                                     <div class="flex items-center justify-between mb-6">
                                         <h1 class="text-2xl font-semibold">
                                             "Spieler " { player.tag_name.clone() } " bearbeiten"
@@ -295,7 +289,8 @@ pub fn PlayerEdit() -> impl IntoView {
                                                 type="checkbox"
                                                 name="player_form[active]"
                                                 class="w-4 h-4 accent-green-600 border-2 border-gray-300 rounded"
-                                                checked=player.active.then_some(())/>
+                                                value="true"
+                                                checked=player.active/>
 
                                             <label for="player_form[team_id]" class="text-left text-gray-700">
                                                 "Team:"
@@ -355,7 +350,7 @@ struct EditPlayerForm {
     email: String,
     tag_name: String,
     #[serde(default)]
-    active: String,
+    active: bool,
     team_id: Option<i64>,
 }
 
@@ -363,7 +358,8 @@ struct EditPlayerForm {
 async fn get_players() -> Result<Vec<Player>, AppError> {
     use crate::database::{self, DieselPool};
 
-    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
 
     let database_players = database::get_all_players(&pool)?;
     let domain_players = database_players
@@ -378,7 +374,8 @@ async fn get_players() -> Result<Vec<Player>, AppError> {
 async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
     use crate::database::{self, DatabaseError, DieselPool};
 
-    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
 
     let result = database::find_player_for_id(id, &pool);
 
@@ -393,28 +390,25 @@ async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
 async fn save_player(player_form: EditPlayerForm) -> Result<(), AppError> {
     use crate::database::{self, DieselPool};
 
-    let active = match player_form.active.as_str() {
-        "on" => true,
-        _ => false
-    };
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
 
     let player = Player {
         id: Some(player_form.id),
         email: player_form.email,
         tag_name: player_form.tag_name,
-        active,
+        active: player_form.active,
         team_id: player_form.team_id,
     };
 
-    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
     let result = database::save_player(player, &pool);
 
     match result {
-        Err(err) => Err(AppError::Database(err)),
-        _ => {
+        Ok(_) => {
             leptos_axum::redirect("/players");
             Ok(())
-        }
+        },
+        Err(err) => Err(AppError::Database(err)),
     }
 }
 
@@ -422,7 +416,9 @@ async fn save_player(player_form: EditPlayerForm) -> Result<(), AppError> {
 async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(), AppError> {
     use crate::database::{self, DieselPool};
 
-    let pool = use_context::<DieselPool>().ok_or_else(|| AppError::MissingContext)?;
+    let pool = use_context::<DieselPool>()
+        .ok_or_else(|| AppError::MissingContext)?;
+
     let result = database::create_player(
         create_new_player.email,
         create_new_player.tag_name,
@@ -431,7 +427,10 @@ async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(),
     );
 
     match result {
-        Ok(()) => Ok(()),
+        Ok(()) => {
+            leptos_axum::redirect("/players");
+            Ok(())
+        },
         Err(err) => Err(AppError::Database(err)),
     }
 }
