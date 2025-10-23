@@ -1,5 +1,5 @@
 pub mod auth;
-pub mod play_event;
+pub mod event;
 pub mod player;
 pub mod protected;
 pub mod team;

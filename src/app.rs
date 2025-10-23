@@ -8,7 +8,7 @@ use leptos_router::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::components::{auth::*, play_event::*, player::*, team::*};
+use crate::components::{auth::*, event::*, player::*, team::*};
 use crate::{auth::AuthError, database::DatabaseError};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -76,31 +76,30 @@ pub fn App() -> impl IntoView {
 
         // content for this welcome page
         <Router>
-            <main>
-                <Routes fallback=|| "Page not found.".into_view()>
-                    <Route path=path!("/login") view=Login/>
-                    <Route path=path!("/register") view=Register/>
-                    <ParentRoute path=path!("/") view=Base>
-                        <Route path=path!("") view=LandingPage/>
-                        <ParentRoute path=path!("/players") view=Players>
-                            <Route path=path!("") view=PlayersTable/>
-                            <Route path=path!("new") view=PlayerNew/>
-                            <Route path=path!(":id/edit") view=PlayerEdit/>
-                            <Route path=path!(":id") view=PlayerProfile/>
-                        </ParentRoute>
-                        <ParentRoute path=path!("/teams") view=Teams>
-                            <Route path=path!("") view=TeamsTable/>
-                            <Route path=path!("new") view=TeamNew/>
-                            <Route path=path!(":id/edit") view=TeamEdit/>
-                            <Route path=path!(":id") view=TeamProfile/>
-                        </ParentRoute>
-                        <ParentRoute path=path!("/events") view=PlayEvents>
-                            <Route path=path!("") view=PlayEventsTable/>
-                            <Route path=path!(":id") view=PlayEventDetails/>
-                        </ParentRoute>
+            <Routes fallback=|| "Page not found.".into_view()>
+                <Route path=path!("/login") view=Login/>
+                <Route path=path!("/register") view=Register/>
+                <ParentRoute path=path!("/") view=Base>
+                    <Route path=path!("") view=LandingPage/>
+                    <ParentRoute path=path!("/players") view=Players>
+                        <Route path=path!("") view=PlayersTable/>
+                        <Route path=path!("new") view=PlayerNew/>
+                        <Route path=path!(":id/edit") view=PlayerEdit/>
+                        <Route path=path!(":id") view=PlayerProfile/>
                     </ParentRoute>
-                </Routes>
-            </main>
+                    <ParentRoute path=path!("/teams") view=Teams>
+                        <Route path=path!("") view=TeamsTable/>
+                        <Route path=path!("new") view=TeamNew/>
+                        <Route path=path!(":id/edit") view=TeamEdit/>
+                        <Route path=path!(":id") view=TeamProfile/>
+                    </ParentRoute>
+                    <ParentRoute path=path!("/events") view=Events>
+                        <Route path=path!("") view=EventsTable/>
+                        <Route path=path!("new") view=EventNew/>
+                        <Route path=path!(":id") view=EventDetails/>
+                    </ParentRoute>
+                </ParentRoute>
+            </Routes>
         </Router>
     }
 }
