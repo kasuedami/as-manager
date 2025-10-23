@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::domain::Team;
 use crate::{app::AppError, domain::Player};
 use crate::components::util::{BackButton, BoolSymbol, OptionalLink, SelectFromServer};
+use crate::server::{find_team_for_id, get_all_players, get_filtered_teams, find_player_for_id};
 
 #[component]
 pub fn Players() -> impl IntoView {
@@ -22,7 +23,7 @@ pub fn Players() -> impl IntoView {
 #[component]
 pub fn PlayersTable() -> impl IntoView {
 
-    let players = Resource::new(|| {}, |_| get_players());
+    let players = Resource::new(|| {}, |_| get_all_players());
 
     view! {
         <BackButton/>
@@ -101,12 +102,12 @@ pub fn PlayerProfile() -> impl IntoView {
     let player_id = use_params::<PlayerIdParameter>();
     let player = Resource::new(
         move || player_id.read().clone(),
-        move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
+        move |params_result| find_player_for_id(params_result.unwrap().id),
     );
 
     let team = Resource::new(
         move || {
-            player.get().and_then(|res| res.as_ref().ok().map(|player| player.team_id)).flatten()
+            player.get().and_then(|res| res.as_ref().ok().map(|player| player.as_ref().map_or(None, |player| player.team_id))).flatten()
         },
         |id| find_team_for_id(id),
     );
@@ -119,7 +120,7 @@ pub fn PlayerProfile() -> impl IntoView {
                 {
                     move || {
                         player.get().map(|result| match result {
-                            Ok(player) => view! {
+                            Ok(Some(player)) => view! {
                                 <div class="flex items-center justify-between mb-6">
                                     <h1 class="text-2xl font-semibold">
                                         "Spieler " { player.tag_name.clone() }
@@ -183,6 +184,9 @@ pub fn PlayerProfile() -> impl IntoView {
                                         </output>
                                     </div>
                                 </div>
+                            }.into_any(),
+                            Ok(None) => view! {
+                                "Spieler nicht gefunden"
                             }.into_any(),
                             Err(e) => view! {
                                 <p>{ e.to_string() }</p>
@@ -258,12 +262,12 @@ pub fn PlayerEdit() -> impl IntoView {
     let player_id = use_params::<PlayerIdParameter>();
     let player = Resource::new(
         move || player_id.read().clone(),
-        move |params_result| load_player_by_id(params_result.unwrap().id.unwrap()),
+        move |params_result| find_player_for_id(params_result.unwrap().id),
     );
 
     let team = Resource::new(
         move || {
-            player.get().and_then(|res| res.as_ref().ok().map(|player| player.team_id)).flatten()
+            player.get().and_then(|res| res.as_ref().ok().map(|player| player.as_ref().map_or(None, |player| player.team_id))).flatten()
         },
         |id| find_team_for_id(id),
     );
@@ -280,7 +284,7 @@ pub fn PlayerEdit() -> impl IntoView {
                 {
                     move || {
                         player.get().map(|result| match result {
-                            Ok(player) => view! {
+                            Ok(Some(player)) => view! {
                                 <ActionForm action=save_team>
                                     <div class="flex items-center justify-between mb-6">
                                         <h1 class="text-2xl font-semibold">
@@ -357,6 +361,9 @@ pub fn PlayerEdit() -> impl IntoView {
                                     </div>
                                 </ActionForm>
                             }.into_any(),
+                            Ok(None) => view! {
+                                <p>"Spieler nicht gefunden"</p>
+                            }.into_any(),
                             Err(e) => view! {
                                 <p>{ e.to_string() }</p>
                             }.into_any(),
@@ -387,38 +394,6 @@ struct EditPlayerForm {
     #[serde(default)]
     active: bool,
     team_id: Option<i64>,
-}
-
-#[server]
-async fn get_players() -> Result<Vec<Player>, AppError> {
-    use crate::database::{self, DieselPool};
-
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
-
-    let database_players = database::get_all_players(&pool)?;
-    let domain_players = database_players
-        .into_iter()
-        .map(|db_player| db_player.into())
-        .collect();
-
-    Ok(domain_players)
-}
-
-#[server]
-async fn load_player_by_id(id: i64) -> Result<Player, AppError> {
-    use crate::database::{self, DatabaseError, DieselPool};
-
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
-
-    let result = database::find_player_for_id(id, &pool);
-
-    match result {
-        Ok(Some(player)) => Ok(player.into()),
-        Ok(None) => Err(DatabaseError::EntityNotFound.into()),
-        Err(err) => Err(err.into()),
-    }
 }
 
 #[server]
@@ -468,37 +443,4 @@ async fn create_new_player(create_new_player: CreateNewPlayerForm) -> Result<(),
         },
         Err(err) => Err(AppError::Database(err)),
     }
-}
-
-#[server]
-async fn find_team_for_id(id: Option<i64>) -> Result<Option<Team>, AppError> {
-    use crate::database::{self, DieselPool};
-
-    if id.is_none() {
-        return Ok(None)
-    }
-
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
-
-    let database_team = database::find_team_for_id(id.unwrap(), &pool)?;
-    let domain_team = database_team.map(|db_team| db_team.into());
-
-    Ok(domain_team)
-}
-
-#[server]
-async fn get_filtered_teams(filter: String) -> Result<Vec<Team>, AppError> {
-    use crate::database::{self, DieselPool};
-
-    let pool = use_context::<DieselPool>()
-        .ok_or_else(|| AppError::MissingContext)?;
-
-    let database_teams = database::get_teams_for_name_filter(filter, &pool)?;
-    let domain_teams = database_teams
-        .into_iter()
-        .map(|db_team| db_team.into())
-        .collect();
-
-    Ok(domain_teams)
 }
