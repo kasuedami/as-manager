@@ -1,0 +1,2 @@
+DATABASE_URL=postgresql://user:password@host/database
+HMAC_KEY=long-random-key
