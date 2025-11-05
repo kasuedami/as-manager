@@ -15,3 +15,5 @@ Cargo.lock
 
 # Diesel lock file
 .diesel_lock
+
+.env
